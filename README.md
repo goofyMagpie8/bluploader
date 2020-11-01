@@ -1,5 +1,4 @@
-Python3:
-  python3  
+Python3 Requirements:   
   requests  
   BeautifulSoup  
   docopt  
