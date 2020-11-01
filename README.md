@@ -1,20 +1,37 @@
-Requirements:
-    python3
-    requests
-    BeautifulSoup
-    docopt
-    guessit
-    IMDb
-    pickle
-    configparser
-    dottorrent
-    dottorrent-cli
 
-mtn:https://gitlab.com/movie_thumbnailer/mtn 
-binaries avalible 
+ --python3
+  --requests
+  --BeautifulSoup
+  --docopt
+  --guessit
+  --IMDb
+  --pickle
+  --configparser
+  --dottorrent
+  --dottorrent-cli
 
-mediainfo
 
+Other Software:   
+
+--mtn:https://gitlab.com/movie_thumbnailer/mtn  binaries avalible  
+--font:a file with a.ttf extension  
+--mediainfo  
+  
+
+   
+
+
+   
+
+
+
+    APIs:
+    --blutopia apikey follow the api instructions on site
+    -- imgbb apikey https://imgbb.com/, create an account api is on the left side
+    -- tmdb apikey create an account follow these instrutions https://developers.themoviedb.org/3/getting-started/introduction
+
+optional:
+oxipng:https://github.com/shssoichiro/oxipng
 
 
 
