@@ -1,14 +1,14 @@
-Requirements 
-Python3
-requests
-BeautifulSoup
-docopt
-guessit
-IMDb
-pickle
-configparser
-dottorrent
-dottorrent-cli
+Requirements:
+    Python3
+    requests
+    BeautifulSoup
+    docopt
+    guessit
+    IMDb
+    pickle
+    configparser
+    dottorrent
+    dottorrent-cli
 
 mtn:https://gitlab.com/movie_thumbnailer/mtn 
 binaries avalible 
