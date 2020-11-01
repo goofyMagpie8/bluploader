@@ -34,7 +34,13 @@ optional:
 
 
 
-    
+   
+   
+   
+   Using:  
+   bluploader.py upload [options]  
+   config file is not required but is highly recommended. config file options can be overwritten by commandline as needed   
+
    
     
     Options:
