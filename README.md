@@ -1,5 +1,5 @@
 Requirements:
-    Python3
+    python3
     requests
     BeautifulSoup
     docopt
