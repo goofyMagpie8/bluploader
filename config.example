@@ -1,0 +1,15 @@
+[api]
+imgbb = apikey
+tmdb = apikey
+bluapi = apikey
+[general]
+torrentdir = folderpath_or_temp
+autotype = yes_or_no
+userid  = number
+anon = 0_or_1
+stream = 0_or_1
+txtoutput= yes_or_no
+autoupload = yes_or_no
+media = dir_to_find_uploading_files_or_dir
+font= font_path
+compress = yes_or_no
