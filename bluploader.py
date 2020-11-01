@@ -184,13 +184,6 @@ def create_upload_form(arguments,path):
             'mal' : '0'
 
             }
-    print(form)
-    os.chdir('/home/main/')
-
-
-
-
-
 
 
 
