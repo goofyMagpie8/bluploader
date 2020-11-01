@@ -1,21 +1,20 @@
-
- --python3
-  --requests
-  --BeautifulSoup
-  --docopt
-  --guessit
-  --IMDb
-  --pickle
-  --configparser
-  --dottorrent
-  --dottorrent-cli
+Python3:
+  python3  
+  requests  
+  BeautifulSoup  
+  docopt  
+  guessit  
+  IMDb  
+  pickle  
+  configparser  
+  dottorrent  
+  dottorrent-cli  
 
 
 Other Software:   
-
---mtn:https://gitlab.com/movie_thumbnailer/mtn  binaries avalible  
---font:a file with a.ttf extension  
---mediainfo  
+ mtn:https://gitlab.com/movie_thumbnailer/mtn  binaries avalible  
+ font:a file with a.ttf extension  
+ mediainfo  
   
 
    
@@ -25,13 +24,13 @@ Other Software:
 
 
 
-    APIs:
-    --blutopia apikey follow the api instructions on site
-    -- imgbb apikey https://imgbb.com/, create an account api is on the left side
-    -- tmdb apikey create an account follow these instrutions https://developers.themoviedb.org/3/getting-started/introduction
+ APIs:
+   blutopia apikey follow the api instructions on site
+   mgbb apikey https://imgbb.com/, create an account api is on the left side
+   tmdb apikey create an account follow these instrutions https://developers.themoviedb.org/3/getting-started/introduction
 
 optional:
-oxipng:https://github.com/shssoichiro/oxipng
+ oxipng:https://github.com/shssoichiro/oxipng  
 
 
 
