@@ -24,9 +24,9 @@ Other Software:
 
 
  APIs:     
-   blutopia apikey follow the api instructions on site  
-   mgbb apikey https://imgbb.com/, create an account api is on the left side  
-   tmdb apikey create an account follow these instrutions https://developers.themoviedb.org/3/getting-started/introduction   
+   blutopia apikey: follow the api instructions on site  
+   imgbb apikey: https://imgbb.com/, create an account api is on the left side  
+   tmdb apikey: create an account follow these instrutions https://developers.themoviedb.org/3/getting-started/introduction   
 
 optional:
  oxipng:https://github.com/shssoichiro/oxipng  
