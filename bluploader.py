@@ -65,6 +65,8 @@ def createconfig(arguments):
         arguments.announce=config['general']['announce']
     if arguments.mtn=="mtn" and len(config['general']['mtn'])!=0:
         arguments.mtn=config['general']['mtn']
+    if arguments.mtn=="mtn" and len(config['general']['oxipng'])!=0:
+        arguments.mtn=config['general']['oxipng']
     if arguments.compress==None and config['general']['compress']=="yes":
         arguments.compress=config['general']['compress']
 
@@ -74,6 +76,7 @@ def createconfig(arguments):
 def createimages(path,basename,arguments):
     #uploading
     mtn=arguments.mtn
+    oxipng=arguments.oxipng
     path=f'"{path}"'
     dir = tempfile.TemporaryDirectory()
     screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
@@ -98,7 +101,7 @@ def createimages(path,basename,arguments):
 
     if arguments.compress=="=yes":
         for filename in os.listdir(dir.name):
-            compress="oxipng -o 6 -r strip safe "+ filename
+            compress=oxipng " -o 6 -r strip safe "+ filename
             os.system(compress)
 
 
@@ -359,6 +362,7 @@ if __name__ == '__main__':
     parser.add_argument("--compress",default=None)
     parser.add_argument("--announce",default=None)
     parser.add_argument("--mtn",default="mtn")
+    parser.add_argument("--oxiping",default="oxipng")
     arguments = parser.parse_args()
     arguments=createconfig(arguments)
 
