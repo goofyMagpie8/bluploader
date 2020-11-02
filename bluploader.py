@@ -161,7 +161,6 @@ def setCat(format):
 
 
 def create_upload_form(arguments,path):
-    print(path)
     output=tempfile.NamedTemporaryFile(suffix='.txt')
     basename=getBasedName(path)
     torrentpath=tempfile.NamedTemporaryFile()
@@ -224,8 +223,8 @@ def create_torrent(path,basename,arguments,torrentpath):
        torrent= "dottorrent -p -t "+arguments["--announce"]+" "+  path +"  "+ torrentpath.name
        output=torrentpath.name
    else:
-       torrent= "dottorrent -p -t"+ arguments["--announce"]+" "+ path +" "+arguments["--torrentdir"]
-       output= arguments["--torrentdir"] + basename + '.torrent'
+       output= arguments["--torrentdir"] +"[Blutopia]" + basename + '.torrent'
+       torrent= "dottorrent -p -t "+ arguments["--announce"]+" "+ path +" "+output
    os.system(torrent)
    return output
 
