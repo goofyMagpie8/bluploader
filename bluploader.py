@@ -1,43 +1,8 @@
 #! /usr/bin/env python3
-
-"""NOTE: READ DOCUMENTATION BEFORE USAGE.
-
-Usage:
-    bluploader.py (-h | --help)
-    bluploader.py [--media <media>]
-    [--config <config>][--imgbb <imgbb> --bluapi <bluapi> --tmdb <tmdb> --torrentdir <torrentdir>]
-    [--autotype <autotype> --userid <userid> --anon <anon>  --stream <stream> --txtoutput <txtoutpt>]
-    [--autoupload <autoupload> --font <font> --compress <compress_png> --announce <blutopia_upload_announce>]
-
-
-    Options:
-      -h --help     Show this screen.
-     --media <media> can be a single file or directory
-     --config ; -x <config> commandline overwrites config
-     --imgbb <imgbb> imgbb api key
-     --bluapi <bluapi> blutopia api key
-     --tmdb <tmdb> tmdb api key
-     --userid <userid> blutopia userid
-     --announce <blutopia_upload_announce> blutiopia announce url can be found on upload page
-
-     --torrentdir <torrentdir> where to save torrent files You can set to temp to save to a tempdir.
-     --txtoutput <txtoutput> save info on upload, returns uguu.se link auto deletes in 24hours
-     --autoupload <autotype> upload to blutopia yes or no
-     --autotype <autotype> try to automate finding type of upload yes or no
-     --stream <stream> is it stream friendly 0 for no, 1 for yes
-     --anon <anon>  anon upload 0 for no, 1 for yes
-     --font <font> font for mtn thumbnail
-     --compress <compress_png> compress images requires oxipng yes or no
-
-
-
-"""
-
-
 import requests
 from bs4 import BeautifulSoup
 import subprocess
-from docopt import docopt
+from argparse import ArgumentParser
 from pathlib import Path
 import json
 import os
@@ -62,7 +27,7 @@ def get_mediainfo(path,output):
 
 def createconfig(arguments):
     try:
-        configpath=arguments.get('--config')
+        configpath=arguments.config
         config.read(configpath)
 
     except:
@@ -70,46 +35,50 @@ def createconfig(arguments):
         return arguments
 
 
-    if arguments['--imgbb']==None:
-        arguments['--imgbb']=config['api']['imgbb']
-    if arguments['--bluapi']==None:
-        arguments['--bluapi']=config['api']['bluapi']
-    if arguments['--tmdb']==None:
-        arguments['--tmdb']=config['api']['tmdb']
-    if arguments['--torrentdir']==None:
-        arguments['--torrentdir']=config['general']['torrentdir']
-    if arguments['--autotype']==None:
-        arguments['--autotype']=config['general']['autotype']
-    if arguments['--anon']==None:
-        arguments['--anon']=config['general']['anon']
-    if arguments['--stream']==None:
-        arguments['--stream']=config['general']['stream']
-    if arguments['--anon']==None:
-        arguments['--anon']=config['general']['anon']
-    if arguments['--userid']==None:
-        arguments['--userid']=config['general']['userid']
-    if arguments['--txtoutput']==None:
-        arguments['--txtoutput']=config['general']['txtoutput']
-    if arguments['--autoupload']==None:
-        arguments['--autoupload']=config['general']['autoupload']
-    if arguments['--media']==None:
-        arguments['--media']=config['general']['media']
-    if arguments['--font']==None:
-        arguments['--font']=config['general']['font']
-    if arguments['--announce']==None:
-        arguments['--announce']=config['general']['announce']
-    if arguments['--compress']==None and config['general']['compress']=="yes":
-        arguments['--compress']=config['general']['compress']
+    if arguments.imgbb==None:
+        arguments.imgbb=config['api']['imgbb']
+    if arguments.bluapi==None:
+        arguments.bluapi=config['api']['bluapi']
+    if arguments.tmdb==None:
+        arguments.tmdb=config['api']['tmdb']
+    if arguments.torrentdir==None:
+        arguments.torrentdir=config['general']['torrentdir']
+    if arguments.autotype==None:
+        arguments.autotype=config['general']['autotype']
+    if arguments.anon==None:
+        arguments.anon=config['general']['anon']
+    if arguments.stream==None:
+        arguments.stream=config['general']['stream']
+    if arguments.anon==None:
+        arguments.anon=config['general']['anon']
+    if arguments.userid==None:
+        arguments.userid=config['general']['userid']
+    if arguments.txtoutput==None:
+        arguments.txtoutput=config['general']['txtoutput']
+    if arguments.autoupload==None:
+        arguments.autoupload=config['general']['autoupload']
+    if arguments.media==None:
+        arguments.media=config['general']['media']
+    if arguments.font==None:
+        arguments.font=config['general']['font']
+    if arguments.announce==None:
+        arguments.announce=config['general']['announce']
+    if arguments.mtn=="mtn" and len(config['general']['mtn'])!=0:
+        arguments.mtn=config['general']['mtn']
+    if arguments.compress==None and config['general']['compress']=="yes":
+        arguments.compress=config['general']['compress']
+
     return arguments
 
 
 def createimages(path,basename,arguments):
     #uploading
+    mtn=arguments.mtn
     path=f'"{path}"'
     dir = tempfile.TemporaryDirectory()
-    screenshot="mtn -f "+ arguments["--font"]+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
+    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
     os.system(screenshot)
-    url='https://api.imgbb.com/1/upload?key=' + arguments['--imgbb']
+    url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
     text=tempfile.NamedTemporaryFile()
     textinput= open(text.name,"w+")
 
@@ -127,9 +96,9 @@ def createimages(path,basename,arguments):
     os.remove(delete)
     os.chdir(dir.name)
 
-    if arguments['--compress']=="=yes":
+    if arguments.compress=="=yes":
         for filename in os.listdir(dir.name):
-            compress="oxipng -o 6 -r --strip safe "+ filename
+            compress="oxipng -o 6 -r strip safe "+ filename
             os.system(compress)
 
 
@@ -161,7 +130,8 @@ def setCat(format):
         return "2"
 
 
-def create_upload_form(arguments,path):
+def create_upload_form(arguments):
+    path=arguments.media
     output=tempfile.NamedTemporaryFile(suffix='.txt')
     basename=getBasedName(path)
     torrentpath=tempfile.NamedTemporaryFile()
@@ -173,6 +143,9 @@ def create_upload_form(arguments,path):
 
 
     tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
+    mediapath=tempfile.NamedTemporaryFile()
+    media=get_mediainfo(path,mediapath.name)
+    media=open(mediapath.name, 'r').read()
 
     form = {'imdb' : imdbid.movieID,
             'name' : getTitle(path),
@@ -181,9 +154,10 @@ def create_upload_form(arguments,path):
             'tmdb': tmdbid,
             'type_id': setTypeID(path,arguments),
             'resolution_id' : setResolution(path),
-            'user_id' : arguments["--userid"],
-            'anonymous' : arguments["--anon"],
-            'stream'    : arguments["--stream"],
+            'mediainfo' : media,
+            'user_id' : arguments.userid,
+            'anonymous' : arguments.anon,
+            'stream'    : arguments.stream,
             'sd'        : is_sd(path),
             'tvdb'      : '0',
             'igdb'  : '0' ,
@@ -194,12 +168,11 @@ def create_upload_form(arguments,path):
 
 
     #send temp paste
-    if arguments['--txtoutput']=="yes":
-        mediapath=tempfile.NamedTemporaryFile()
-        media=get_mediainfo(path,mediapath.name)
-        with open(output.name, 'w') as f:
-            for key, value in form.items():
-                f.write('%s:\n\n%s\n\n' % (key, value))
+    if arguments.txtoutput=="yes":
+
+        txt=open(output.name, 'w')
+        for key, value in form.items():
+            txt.write('%s:\n\n%s\n\n' % (key, value))
 
         with open(output.name, 'a+') as outfile:
             outfile.write('%s:\n\n' % ('media:'))
@@ -211,9 +184,9 @@ def create_upload_form(arguments,path):
         post=requests.post(url="https://uguu.se/api.php?d=upload-tool",files=output)
         print(post.text)
 
-    if arguments["--autoupload"]=="yes":
+    if arguments.autoupload=="yes":
         torrent = {'torrent': open(torrent,'rb')}
-        torrenturl="https://blutopia.xyz/api/torrents/upload?api_token=" + arguments["--bluapi"]
+        torrenturl="https://blutopia.xyz/api/torrents/upload?api_token=" + arguments.bluapi
         upload=requests.post(url=torrenturl,files=torrent, data=form)
         print(upload.text)
 
@@ -222,20 +195,20 @@ def create_upload_form(arguments,path):
 def create_torrent(path,basename,arguments,torrentpath):
    path=f'"{path}"'
 
-   if arguments["--torrentdir"]=="temp":
+   if arguments.torrentdir=="temp":
        output=torrentpath.name
-       torrent= "dottorrent -p -t "+arguments["--announce"]+" "+  path +"  "+ torrentpath.name
+       torrent= "dottorrent -p -t "+arguments.announce+" "+  path +"  "+ torrentpath.name
    else:
-       output= arguments["--torrentdir"] +"[Blutopia]" + basename + '.torrent'
+       output= arguments.torrentdir +"[Blutopia]" + basename + '.torrent'
        outputquoted=f'"{output}"'
-       torrent= "dottorrent -p -t "+ arguments["--announce"]+" "+ path +" "+outputquoted
+       torrent= "dottorrent -p -t "+ arguments.announce+" "+ path +" "+outputquoted
    print(torrent)
    os.system(torrent)
    return output
 
 def IMDBtoTMDB(imdbid,format,arguments):
 
-  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments['--tmdb']+"e&language=en-US&external_source=imdb_id"
+  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"e&language=en-US&external_source=imdb_id"
   list=requests.get(url)
   if(format=="TV"):
        format='tv_results'
@@ -286,7 +259,7 @@ def getTitle(path):
     return basename
 
 def setTypeID(path,arguments):
-    if arguments["--autotype"]=="yes":
+    if arguments.autotype=="yes":
         details=guessit(path)
         source = details['source']
         remux=details.get('other')
@@ -348,7 +321,7 @@ def is_sd(path):
 
 
 def setType(path,arguments):
-    if arguments["--autotype"]=="yes":
+    if arguments.autotype=="yes":
         details=guessit(path)
         format = details['type']
         if(format=="episode"):
@@ -365,14 +338,32 @@ def setType(path,arguments):
 
 
 if __name__ == '__main__':
-    arguments = docopt(__doc__, version='Blu Uploader')
+    parser = ArgumentParser()
+    parser.add_argument("--media",default=None)
+    parser.add_argument("--imgbb",default=None)
+    parser.add_argument("--config",default=None)
+    parser.add_argument("--tmdb",default=None)
+    parser.add_argument("--bluapi",default=None)
+    parser.add_argument("--torrentdir",default=None)
+    parser.add_argument("--autotype",default=None)
+    parser.add_argument("--stream",default=None)
+    parser.add_argument("--userid",default=None)
+    parser.add_argument("--anon",default=None)
+    parser.add_argument("--txtoutput",default=None)
+    parser.add_argument("--autoupload",default=None)
+    parser.add_argument("--font",default=None)
+    parser.add_argument("--compress",default=None)
+    parser.add_argument("--announce",default=None)
+    parser.add_argument("--mtn",default="mtn")
+    arguments = parser.parse_args()
     arguments=createconfig(arguments)
-    if os.path.isdir(arguments['--media'])==False:
-        create_upload_form(arguments,arguments['--media'])
+
+    if os.path.isdir(arguments.media)==False:
+        create_upload_form(arguments)
         quit()
-    for entry in os.scandir(arguments['--media']):
-        path=arguments['--media']+entry.name
+    for entry in os.scandir(arguments.media):
+        path=arguments.media+entry.name
         print(path)
         upload = input("Do you want to upload this torrent yes or no: ")
         if upload=="yes" or upload=="Yes" or upload=="Y" or upload=="y"  or upload=="YES":
-            create_upload_form(arguments,path)
+            create_upload_form(arguments)
