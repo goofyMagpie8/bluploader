@@ -60,3 +60,4 @@ optional:
      --font <font> font for mtn thumbnail
      --compress <compress_png> compress images requires oxipng yes or no
      --mtn path to mtn, defaults to mtn. If on linux just put mtn in your path
+     --oxipng path to oxipng defaults to oxipng. If on linux just put it in your path
