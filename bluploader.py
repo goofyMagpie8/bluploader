@@ -130,8 +130,11 @@ def setCat(format):
         return "2"
 
 
-def create_upload_form(arguments):
-    path=arguments.media
+def create_upload_form(arguments,entyname=None):
+    if entyname==None:
+        path=arguments.media
+    else:
+        path=arguments.media+entyname
     output=tempfile.NamedTemporaryFile(suffix='.txt')
     basename=getBasedName(path)
     torrentpath=tempfile.NamedTemporaryFile()
@@ -195,6 +198,7 @@ def create_upload_form(arguments):
 def create_torrent(path,basename,arguments,torrentpath):
    path=f'"{path}"'
 
+
    if arguments.torrentdir=="temp":
        output=torrentpath.name
        torrent= "dottorrent -p -t "+arguments.announce+" "+  path +"  "+ torrentpath.name
@@ -202,7 +206,7 @@ def create_torrent(path,basename,arguments,torrentpath):
        output= arguments.torrentdir +"[Blutopia]" + basename + '.torrent'
        outputquoted=f'"{output}"'
        torrent= "dottorrent -p -t "+ arguments.announce+" "+ path +" "+outputquoted
-   print(torrent)
+   print(torrent,"\n")
    os.system(torrent)
    return output
 
@@ -361,9 +365,9 @@ if __name__ == '__main__':
     if os.path.isdir(arguments.media)==False:
         create_upload_form(arguments)
         quit()
-    for entry in os.scandir(arguments.media):
-        path=arguments.media+entry.name
+    for enty in os.scandir(arguments.media):
+        path=arguments.media+enty.name
         print(path)
         upload = input("Do you want to upload this torrent yes or no: ")
         if upload=="yes" or upload=="Yes" or upload=="Y" or upload=="y"  or upload=="YES":
-            create_upload_form(arguments)
+            create_upload_form(arguments,enty.name)
