@@ -225,7 +225,7 @@ def create_torrent(path,basename,arguments,torrentpath):
        output=torrentpath.name
    else:
        torrent= "dottorrent -p -t"+ arguments["--announce"]+" "+ path +" "+arguments["--torrentdir"]
-       output= '/home/main/Downloads/Seeding/Torrents/' + basename + '.torrent'
+       output= arguments["--torrentdir"] + basename + '.torrent'
    os.system(torrent)
    return output
 
