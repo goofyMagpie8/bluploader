@@ -59,3 +59,4 @@ optional:
      --anon <anon>  anon upload 0 for no, 1 for yes
      --font <font> font for mtn thumbnail
      --compress <compress_png> compress images requires oxipng yes or no
+     --mtn path to mtn, defaults to mtn. If on linux just put mtn in your path
