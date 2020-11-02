@@ -15,4 +15,5 @@ font= font_path
 compress = yes_or_no
 announce = https://blutopia.xyz/announce/pidhere
 mtn = path to mtn,really only needed for windows or a non sudo seedbox
+oxipng = path to oxipng,really only needed for windows or a non sudo seedbox
 
