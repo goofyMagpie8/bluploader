@@ -105,6 +105,7 @@ def createconfig(arguments):
 
 def createimages(path,basename,arguments):
     #uploading
+    path=f'"{path}"'
     dir = tempfile.TemporaryDirectory()
     screenshot="mtn -f "+ arguments["--font"]+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
     os.system(screenshot)
@@ -219,12 +220,16 @@ def create_upload_form(arguments,path):
 
 
 def create_torrent(path,basename,arguments,torrentpath):
+   path=f'"{path}"'
+
    if arguments["--torrentdir"]=="temp":
-       torrent= "dottorrent -p -t "+arguments["--announce"]+" "+  path +"  "+ torrentpath.name
        output=torrentpath.name
+       torrent= "dottorrent -p -t "+arguments["--announce"]+" "+  path +"  "+ torrentpath.name
    else:
        output= arguments["--torrentdir"] +"[Blutopia]" + basename + '.torrent'
-       torrent= "dottorrent -p -t "+ arguments["--announce"]+" "+ path +" "+output
+       outputquoted=f'"{output}"'
+       torrent= "dottorrent -p -t "+ arguments["--announce"]+" "+ path +" "+outputquoted
+   print(torrent)
    os.system(torrent)
    return output
 
@@ -288,11 +293,13 @@ def setTypeID(path,arguments):
 
 
         if (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and remux==None:
-            source = '1'
+            source = '12'
         elif (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and remux!=None:
             source = '3'
-        elif (source=="Web" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and remux!=None:
+        elif source=="Web" and remux=="remux":
             source = '4'
+        elif source=="Web" and remux==None:
+            source = '5'
         elif source=="Analog HDTV" or source=="HDTV" or source=="Ultra HDTV" or source=="TV":
             source = '6'
     else:
