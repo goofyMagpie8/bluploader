@@ -13,3 +13,5 @@ autoupload = yes_or_no
 media = dir_to_find_uploading_files_or_dir
 font= font_path
 compress = yes_or_no
+announce = https://blutopia.xyz/announce/pidhere
+
