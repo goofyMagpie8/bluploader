@@ -5,7 +5,7 @@ Python3 Requirements:
   guessit  
   IMDb  
   pickle  
-  configparser  
+  argparse
   dottorrent  
   dottorrent-cli  
 
