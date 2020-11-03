@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import subprocess
 from argparse import ArgumentParser
 from pathlib import Path
-import jsonSDDDDDDDDDDDDDDDDDDD
+import json
 import os
 from guessit import guessit
 from imdb import IMDb
@@ -214,7 +214,7 @@ def create_torrent(path,basename,arguments,torrentpath):
 
 def IMDBtoTMDB(imdbid,format,arguments):
 
-  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"e&language=en-US&external_source=imdb_id"
+  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
   list=requests.get(url)
   if(format=="TV"):
        format='tv_results'
