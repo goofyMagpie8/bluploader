@@ -226,7 +226,7 @@ def IMDBtoTMDB(imdbid,format,arguments):
 
   id=list.json()[format]
   if len(id)==0:
-      imdb = input("auto imdb is probably wrong, please manually enter imdb excluding the tt: ")
+      imdbid = input("auto imdb is probably wrong, please manually enter imdb excluding the tt: ")
       url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
       list=requests.get(url)
       if(format=="TV"):
