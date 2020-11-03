@@ -65,6 +65,8 @@ def createconfig(arguments):
         arguments.mtn=config['general']['mtn']
     if arguments.oxipng=="oxipng" and len(config['general']['oxipng'])!=0:
         arguments.oxipng=config['general']['oxipng']
+    if arguments.oxipng=="mediainfo" and len(config['general']['mediainfo'])!=0:
+        arguments.mediainfo=config['general']['mediainfo']
     if arguments.compress==None and config['general']['compress']=="yes":
         arguments.compress=config['general']['compress']
 
@@ -222,6 +224,18 @@ def IMDBtoTMDB(imdbid,format,arguments):
 
 
   id=list.json()[format]
+  if len(id)==0:
+      imdb = input("auto imdb is probably wrong, please manually enter imdb excluding the tt: ")
+      url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
+      list=requests.get(url)
+      if(format=="TV"):
+            format='tv_results'
+      if(format=="Movie"):
+            format='movie_results'
+      print(url)
+      id=list.json()[format]
+
+
   id=id[0]
   id=id['id']
   return id
@@ -359,6 +373,7 @@ if __name__ == '__main__':
     parser.add_argument("--announce",default=None)
     parser.add_argument("--mtn",default="mtn")
     parser.add_argument("--oxipng",default="oxipng")
+    parser.add_argument("--mediainfo",default="mediainfo")
     arguments = parser.parse_args()
     arguments=createconfig(arguments)
 
