@@ -17,9 +17,6 @@ config = configparser.ConfigParser(allow_no_value=True)
 
 #TODO
 #mal
-
-
-#torrentdir tempfolder
 def get_mediainfo(path,output):
     output = open(output, "a+")
     media=subprocess.run(['mediainfo', path],stdout=output)
@@ -28,6 +25,7 @@ def get_mediainfo(path,output):
 def createconfig(arguments):
     try:
         configpath=arguments.config
+
         config.read(configpath)
 
     except:
@@ -239,7 +237,7 @@ def getimdb(path):
    if 'year' in details:
         title = "{} {}".format(title, details['year'])
    results = IMDb().search_movie(title)
-   if len(results) == 0:
+   if len(results) ==0:
         print("Unable to find imdb")
         id = input("Enter imdb just what comes after tt: ")
         id=IMDb().get_movie(id)
@@ -594,7 +592,7 @@ def create_torrent(path,basename,arguments,torrentpath):
 
 def IMDBtoTMDB(imdbid,format,arguments):
 
-  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"e&language=en-US&external_source=imdb_id"
+  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
   list=requests.get(url)
   if(format=="TV"):
        format='tv_results'
