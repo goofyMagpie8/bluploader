@@ -133,7 +133,7 @@ def create_upload_form(arguments,entyname=None):
         path=arguments.media
     else:
         path=arguments.media+entyname
-    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex(),".txt")
     title=getTitle(path)
     torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
     torrent=create_torrent(path,title,arguments,torrentpath)
