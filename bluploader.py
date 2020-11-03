@@ -77,7 +77,7 @@ def createimages(path,arguments):
     oxipng=arguments.oxipng
     path=f'"{path}"'
     dir = tempfile.TemporaryDirectory()
-    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir
+    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
     os.system(screenshot)
     url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
     text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
@@ -88,24 +88,24 @@ def createimages(path,arguments):
     #delete largest pic
     max=0
     delete=""
-    for filename in os.listdir(dir):
-       filename=dir +'/'+filename
+    for filename in os.listdir(dir.name):
+       filename=dir.name +'/'+filename
        temp=os.path.getsize(filename)
        if(temp>max):
             max=temp
             delete=filename
     os.remove(delete)
-    os.chdir(dir)
+    os.chdir(dir.name)
 
     if arguments.compress=="=yes":
-        for filename in os.listdir(dir):
+        for filename in os.listdir(dir.name):
             compress=oxipng + " -o 6 -r strip safe "+ filename
             os.system(compress)
 
 
 
-    for filename in os.listdir(dir):
-       filename=dir+'/'+filename
+    for filename in os.listdir(dir.name):
+       filename=dir.name+'/'+filename
        image=filename
        image = {'image': open(image,'rb')}
        upload=requests.post(url=url,files=image)
@@ -117,7 +117,6 @@ def createimages(path,arguments):
        textinput.write(link)
     textinput.close()
     textoutput= open(text,"r")
-    #text=textoutput.read()
     return textoutput.read()
 
 
@@ -133,7 +132,8 @@ def create_upload_form(arguments,entyname=None):
         path=arguments.media
     else:
         path=arguments.media+entyname
-    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex(),".txt")
+    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex()+".txt")
+
     title=getTitle(path)
     torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
     torrent=create_torrent(path,title,arguments,torrentpath)
