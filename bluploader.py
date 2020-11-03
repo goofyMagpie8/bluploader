@@ -149,7 +149,7 @@ def create_upload_form(arguments,entyname=None):
 
     tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
     mediapath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    media=get_mediainfo(path,mediapath)
+    media=get_mediainfo(path,mediapath,arguments)
 
     media=open(mediapath, 'r').read()
 
