@@ -6,12 +6,12 @@ from argparse import ArgumentParser
 from pathlib import Path
 import json
 import os
+import tempfile
 from guessit import guessit
 from imdb import IMDb
 ia = IMDb()
 import pickle
 import subprocess
-import tempfile
 import configparser
 config = configparser.ConfigParser(allow_no_value=True)
 
@@ -71,41 +71,41 @@ def createconfig(arguments):
     return arguments
 
 
-def createimages(path,basename,arguments):
+def createimages(path,arguments):
     #uploading
     mtn=arguments.mtn
     oxipng=arguments.oxipng
     path=f'"{path}"'
     dir = tempfile.TemporaryDirectory()
-    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
+    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir
     os.system(screenshot)
     url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
-    text=tempfile.NamedTemporaryFile()
-    textinput= open(text.name,"w+")
+    text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    textinput= open(text,"w+")
 
 
 
     #delete largest pic
     max=0
     delete=""
-    for filename in os.listdir(dir.name):
-       filename=dir.name +'/'+filename
+    for filename in os.listdir(dir):
+       filename=dir +'/'+filename
        temp=os.path.getsize(filename)
        if(temp>max):
             max=temp
             delete=filename
     os.remove(delete)
-    os.chdir(dir.name)
+    os.chdir(dir)
 
     if arguments.compress=="=yes":
-        for filename in os.listdir(dir.name):
+        for filename in os.listdir(dir):
             compress=oxipng + " -o 6 -r strip safe "+ filename
             os.system(compress)
 
 
 
-    for filename in os.listdir(dir.name):
-       filename=dir.name+'/'+filename
+    for filename in os.listdir(dir):
+       filename=dir+'/'+filename
        image=filename
        image = {'image': open(image,'rb')}
        upload=requests.post(url=url,files=image)
@@ -116,14 +116,11 @@ def createimages(path,basename,arguments):
        link=link.attrs['value']+" "
        textinput.write(link)
     textinput.close()
-    textoutput= open(text.name,"r")
+    textoutput= open(text,"r")
     #text=textoutput.read()
     return textoutput.read()
 
 
-def getBasedName(path):
-    basename=Path(path).stem
-    return basename
 def setCat(format):
     if format=="Movie":
         return "1"
@@ -136,11 +133,11 @@ def create_upload_form(arguments,entyname=None):
         path=arguments.media
     else:
         path=arguments.media+entyname
-    output=tempfile.NamedTemporaryFile(suffix='.txt')
-    basename=getBasedName(path)
-    torrentpath=tempfile.NamedTemporaryFile()
-    torrent=create_torrent(path,basename,arguments,torrentpath)
+    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
     title=getTitle(path)
+    torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    torrent=create_torrent(path,title,arguments,torrentpath)
+
     if Path(path).is_dir():
         path = str(next(Path(path).glob('*/')))
     imdbid = getimdb(path)
@@ -148,13 +145,14 @@ def create_upload_form(arguments,entyname=None):
 
 
     tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
-    mediapath=tempfile.NamedTemporaryFile()
-    media=get_mediainfo(path,mediapath.name)
-    media=open(mediapath.name, 'r').read()
+    mediapath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    media=get_mediainfo(path,mediapath)
+
+    media=open(mediapath, 'r').read()
 
     form = {'imdb' : imdbid.movieID,
             'name' : title,
-            'description' : createimages(path,basename,arguments),
+            'description' : createimages(path,arguments),
             'category_id' : setCat(format),
             'tmdb': tmdbid,
             'type_id': setTypeID(path,arguments),
@@ -175,17 +173,17 @@ def create_upload_form(arguments,entyname=None):
     #send temp paste
     if arguments.txtoutput=="yes":
 
-        txt=open(output.name, 'w')
+        txt=open(output, 'w')
         for key, value in form.items():
             txt.write('%s:\n\n%s\n\n' % (key, value))
 
-        with open(output.name, 'a+') as outfile:
+        with open(output, 'a+') as outfile:
             outfile.write('%s:\n\n' % ('media:'))
             #Open each file in read mode
-            with open(mediapath.name) as infile:
+            with open(mediapath) as infile:
                 outfile.write(infile.read())
 
-        output = {'file': open(output.name,'r')}
+        output = {'file': open(output,'r')}
         post=requests.post(url="https://uguu.se/api.php?d=upload-tool",files=output)
         print(post.text)
 
@@ -202,8 +200,8 @@ def create_torrent(path,basename,arguments,torrentpath):
 
 
    if arguments.torrentdir=="temp":
-       output=torrentpath.name
-       torrent= "dottorrent -p -t "+arguments.announce+" "+  path +"  "+ torrentpath.name
+       output=torrentpath
+       torrent= "dottorrent -p -t "+arguments.announce+" "+  path +"  "+ torrentpath
    else:
        output= arguments.torrentdir +"[Blutopia]" + basename + '.torrent'
        outputquoted=f'"{output}"'
@@ -260,8 +258,6 @@ def getimdb(path):
 
 def getTitle(path):
     basename=os.path.basename(path)
-    basename=os.path.splitext(basename)[0]
-    basename=basename.replace("."," ")
     return basename
 
 def setTypeID(path,arguments):
