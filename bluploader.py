@@ -739,7 +739,7 @@ if __name__ == '__main__':
     parser.add_argument("--compress",default=None)
     parser.add_argument("--announce",default=None)
     parser.add_argument("--mtn",default="mtn")
-    parser.add_argument("--oxipng",default="oxipng")
+    parser.add_argument("--oxipng",default="oxipng")DDSD
     arguments = parser.parse_args()
     arguments=createconfig(arguments)
 
