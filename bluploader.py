@@ -17,9 +17,10 @@ config = configparser.ConfigParser(allow_no_value=True)
 
 #TODO
 #mal
-def get_mediainfo(path,output):
+def get_mediainfo(path,output,arguments):
+    mediainfo=arguments.mediainfo
     output = open(output, "a+")
-    media=subprocess.run(['mediainfo', path],stdout=output)
+    media=subprocess.run([mediainfo, path],stdout=output)
 
 
 def createconfig(arguments):
@@ -272,6 +273,16 @@ def getimdb(path):
 
 def getTitle(path):
     basename=os.path.basename(path)
+    basename=basename.replace("."," ")
+    basename = basename.replace("H 264","H.264")
+    basename = basename.replace("H 265","H.265")
+    basename = basename.replace("H264","H.264")
+    basename = basename.replace("H265","H.265")
+    basename = basename.replace("DD5 1","DD5.1")
+    basename = basename.replace("5 1","5.1")
+    basename = basename.replace("X26","x264")
+    basename = basename.replace("Amazon","AMZN")
+    basename = basename.replace("Netflix","NF")
     return basename
 
 def setTypeID(path,arguments):
