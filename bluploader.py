@@ -12,11 +12,35 @@ from imdb import IMDb
 ia = IMDb()
 import pickle
 import subprocess
+import math
 import configparser
 config = configparser.ConfigParser(allow_no_value=True)
 
+
+
 #TODO
 #mal
+
+# function to find the resolution of the input video file.Not Mine but very useful
+def findVideoMetadata(pathToInputVideo):
+    cmd = "ffprobe -v quiet -print_format json -show_streams"
+    args = shlex.split(cmd)
+    args.append(pathToInputVideo)
+    # run the ffprobe process, decode stdout into utf-8 & convert to JSON
+    ffprobeOutput = subprocess.check_output(args).decode('utf-8')
+    ffprobeOutput = json.loads(ffprobeOutput)
+    size=len(ffprobeOutput['streams'])
+
+    i=0
+    while i<size:
+        if ffprobeOutput['streams'][i].get('duration')!=None:
+            duration=ffprobeOutput['streams'][i].get('duration')
+            break
+        i=i+1
+    width = ffprobeOutput['streams'][0]['coded_width']
+    return duration,width
+
+
 def get_mediainfo(path,output,arguments):
     mediainfo=arguments.mediainfo
     output = open(output, "a+")
@@ -66,7 +90,7 @@ def createconfig(arguments):
         arguments.mtn=config['general']['mtn']
     if arguments.oxipng=="oxipng" and len(config['general']['oxipng'])!=0:
         arguments.oxipng=config['general']['oxipng']
-    if arguments.oxipng=="mediainfo" and len(config['general']['mediainfo'])!=0:
+    if arguments.mediainfo=="mediainfo" and len(config['general']['mediainfo'])!=0:
         arguments.mediainfo=config['general']['mediainfo']
     if arguments.compress==None and config['general']['compress']=="yes":
         arguments.compress=config['general']['compress']
@@ -78,9 +102,15 @@ def createimages(path,arguments):
     #uploading
     mtn=arguments.mtn
     oxipng=arguments.oxipng
-    path=f'"{path}"'
+
     dir = tempfile.TemporaryDirectory()
-    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s 400 -I " +path +" -O " +dir.name
+    from pymediainfo import MediaInfo
+    media_info = MediaInfo.parse(path)
+    for track in media_info.tracks:
+        if track.track_type == 'Video':
+            interval=math.ceil(float(track.duration)/6000)
+    path=f'"{path}"'
+    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s "+ str(interval)+ " -I " +path +" -O " +dir.name
     os.system(screenshot)
     url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
     text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
@@ -98,6 +128,7 @@ def createimages(path,arguments):
             max=temp
             delete=filename
     os.remove(delete)
+    home= os.getcwd()
     os.chdir(dir.name)
 
     if arguments.compress=="=yes":
@@ -120,6 +151,7 @@ def createimages(path,arguments):
        textinput.write(link)
     textinput.close()
     textoutput= open(text,"r")
+    os.chdir(home)
     return textoutput.read()
 
 
@@ -160,31 +192,24 @@ def create_upload_form(arguments,entyname=None):
             'tmdb': tmdbid,
             'type_id': setTypeID(path,arguments),
             'resolution_id' : setResolution(path),
-            'mediainfo' : media,
             'user_id' : arguments.userid,
             'anonymous' : arguments.anon,
             'stream'    : arguments.stream,
             'sd'        : is_sd(path),
             'tvdb'      : '0',
             'igdb'  : '0' ,
-            'mal' : '0'
+            'mal' : '0',
+            'mediainfo' : media
             }
 
 
 
 
-    #send temp paste
     if arguments.txtoutput=="yes":
-
-        txt=open(output, 'w')
+        txt=open(output, 'a+')
         for key, value in form.items():
             txt.write('%s:\n\n%s\n\n' % (key, value))
-
-        with open(output, 'a+') as outfile:
-            outfile.write('%s:\n\n' % ('media:'))
-            #Open each file in read mode
-            with open(mediapath) as infile:
-                outfile.write(infile.read())
+        txt.close()
 
         output = {'file': open(output,'r')}
         post=requests.post(url="https://uguu.se/api.php?d=upload-tool",files=output)
@@ -226,7 +251,7 @@ def IMDBtoTMDB(imdbid,format,arguments):
 
   id=list.json()[format]
   if len(id)==0:
-      imdbid = input("auto imdb is probably wrong, please manually enter imdb excluding the tt: ")
+      imdbid= input("auto imdb is probably wrong, please manually enter imdb excluding the tt: ")
       url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
       list=requests.get(url)
       if(format=="TV"):
@@ -274,6 +299,8 @@ def getimdb(path):
 def getTitle(path):
     basename=os.path.basename(path)
     basename=basename.replace("."," ")
+    basename=basename.replace(".mkv"," ")
+    basename=basename.replace(".mp4"," ")
     basename = basename.replace("H 264","H.264")
     basename = basename.replace("H 265","H.265")
     basename = basename.replace("H264","H.264")
@@ -283,6 +310,27 @@ def getTitle(path):
     basename = basename.replace("X26","x264")
     basename = basename.replace("Amazon","AMZN")
     basename = basename.replace("Netflix","NF")
+    print(basename,"\n")
+
+
+    examples={"1":"DVD: Name Year Encoding system Format Source Audio-Tag"+"\n"+"Clinton and Nadine 1988 PAL DVD5 DD 5.1-CultFilms","2":"DVD Remux: Name Year Encoding system Format Source Audio-Tag"+"\n"+"Clinton and Nadine 1988 PAL DVD REMUX DD 5.1-BLURANiUM","3":"HDTV:Name Year Resolution Source Audio Video-encode-Tag"+"\n"+"The Sasquatch Gang 2006 720p HDTV DD 5.1 x264-DON","4":"Blu-ray Encode: Name Year Resolution Source Audio Video-encode-Tag"+"\n"+"Goodfellas 1990 1080p BluRay DTS 5.1 x264-DON","5":"Blu-ray Remux: Name Year Resolution Source Video-codec Audio-Tag"+"\n"+"Motherless Brooklyn 2019 1080p BluRay REMUX AVC DTS-HD MA 5.1-KRaLiMaRKo","6":"Full Blu-ray Disc: Name Year Resolution Region Source Video-codec Audio-Tag"+"\n"+"The Green Hornet 2011 3D 1080p NOR Blu-ray AVC DTS-HD MA 5.1-HDBEE","7":"WEB: Name Year Resolution Source Rip-type Audio Video-codec-Tag"+"\n"+"Long Shot 2019 2160p WEB-DL DD+ 5.1 HDR H.265-PHOENiX","8":"DVD: Name S##E## Encoding system Format Audio-Tag"+"\n"+"Green Wing COMPLETE NTSC 18xDVD5 DD 2.0","9":"DVD Remux: Name S##E## Encoding system Format Audio-Tag"+"\n"+"Rose Red COMPLETE NTSC DVD9 REMUX DD 5.1","10":"WEB: Name S##E## Resolution Source Rip-type Audio Video-codec-Tag"+"\n"+"Dracula 2020 S01E01 2160p NF WEBRip DD+ 5.1 H.264-NTb","11":"HDTV: Name S##E## Resolution Source Audio Video-encode-Tag"+"\n"+"Samantha Who? S01 720p HDTV DD 5.1 x264-MiXED","12":"Blu-ray Encode: Name S##E## Resolution Source Audio Video-encode-Tag"+"\n"+"Westworld S02 1080p UHD BluRay DTS 5.1 HDR x265-LYS","13":"Blu-ray Remux: Name S##E## Resolution Source Video-codec Audio-Tag"+"\n"+"Game of Thrones S08 REPACK 2160p UHD BluRay REMUX HDR HEVC Atmos 7.1-FraMeSToR","14":"Full Blu-ray Disc: Name S##E## Resolution Region Source Video-codec Audio-Tag"+"\n"+"Breaking Bad S01 1080p AUS Blu-ray AVC DTS-HD MA 5.1-CultFilms™","14":"Full Blu-ray Disc: Name S##E## Resolution Region Source Video-codec Audio-Tag"+"\n"+"Breaking Bad S01 1080p AUS Blu-ray AVC DTS-HD MA 5.1-CultFilms™","15":"Anime: Name S##E## Resolution Source Video Audio Sub/Dub-Tag"+"\n"+"Haikyuu!! S03E06 1080p WEB-DL English Dubbed AAC 2.0 H.264-Golumpa"}
+
+    correct=input("Title is it Correct for Blu?:")
+
+    while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES":
+        print("\n","Press Number for an Examples","\n","\n","Movies:1=DVD  2=DVD REMUX 3=HDTV 4=Blu-ray Encode 5=Blu-ray Remux 6=Full Blu-ray Disc 7=Web"+"\n" \
+        +"TV:8=DVD  9=DVD REMUX 10=Web 11=HDTV 12=Blu-ray Encode 13=Blu-ray Remux 14=Full Blu-ray Disc 15=Anime","\n","\n")
+        newname=input("Enter Correct Title or Example Number: ")
+
+
+        if(examples.get(newname)!=None):
+            print(examples[newname])
+            print(basename)
+
+
+        else:
+            basename=newname
+            correct=input("Are you sure the title is correct now: ")
     return basename
 
 def setTypeID(path,arguments):
@@ -393,6 +441,7 @@ if __name__ == '__main__':
         quit()
     for enty in os.scandir(arguments.media):
         path=arguments.media+enty.name
+        print("\n")
         print(path)
         upload = input("Do you want to upload this torrent yes or no: ")
         if upload=="yes" or upload=="Yes" or upload=="Y" or upload=="y"  or upload=="YES":
