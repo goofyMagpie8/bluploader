@@ -298,9 +298,12 @@ def getimdb(path):
 
 def getTitle(path):
     basename=os.path.basename(path)
-    basename=basename.replace("."," ")
-    basename=basename.replace(".mkv"," ")
-    basename=basename.replace(".mp4"," ")
+    basename=basename.replace(".","")
+    basename=basename.replace(".mkv","")
+    basename=basename.replace(".mp4","")
+    basename = basename.replace("Hulu","HULU")
+    basename = basename.replace("DD+","DD+ ")
+    basename = basename.replace("DDP","DD+ ")
     basename = basename.replace("H 264","H.264")
     basename = basename.replace("H 265","H.265")
     basename = basename.replace("H264","H.264")
