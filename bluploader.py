@@ -24,10 +24,6 @@ import re
 #mal
 
 
-def get_mediainfo(path,output,arguments):
-    mediainfo=arguments.mediainfo
-    output = open(output, "a+")
-    media=subprocess.run([mediainfo, path],stdout=output)
 
 
 def createconfig(arguments):
@@ -81,68 +77,6 @@ def createconfig(arguments):
     return arguments
 
 
-def createimages(path,arguments):
-    #uploading
-    mtn=arguments.mtn
-    oxipng=arguments.oxipng
-
-    dir = tempfile.TemporaryDirectory()
-    from pymediainfo import MediaInfo
-    media_info = MediaInfo.parse(path)
-    for track in media_info.tracks:
-        if track.track_type == 'Video':
-            interval=math.ceil(float(track.duration)/10000)
-    path=f'"{path}"'
-    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -P -s "+ str(interval)+ " -I " +path +" -O " +dir.name
-    os.system(screenshot)
-    url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
-    text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    textinput= open(text,"w+")
-
-
-
-    #delete largest pic
-    max=0
-    delete=""
-    for filename in os.listdir(dir.name):
-       filename=dir.name +'/'+filename
-       temp=os.path.getsize(filename)
-       if(temp>max):
-            max=temp
-            delete=filename
-    os.remove(delete)
-    home= os.getcwd()
-    os.chdir(dir.name)
-
-    if arguments.compress=="=yes":
-        for filename in os.listdir(dir.name):
-            compress=oxipng + " -o 6 -r strip safe "+ filename
-            os.system(compress)
-
-
-
-    for filename in os.listdir(dir.name):
-       filename=dir.name+'/'+filename
-       image=filename
-       image = {'image': open(image,'rb')}
-       upload=requests.post(url=url,files=image)
-       upload=upload.json()['data']['url_viewer']
-       upload=requests.post(url=upload)
-       link = BeautifulSoup(upload.text, 'html.parser')
-       link = link.find('input',{'id' :'embed-code-5'})
-       link=link.attrs['value']+" "
-       textinput.write(link)
-    textinput.close()
-    textoutput= open(text,"r")
-    os.chdir(home)
-    return textoutput.read()
-
-
-def setCat(format):
-    if format=="Movie":
-        return "1"
-    if format=="TV":
-        return "2"
 
 
 def create_upload_form(arguments,entyname=None):
@@ -150,29 +84,34 @@ def create_upload_form(arguments,entyname=None):
         uploadpath=arguments.media
     else:
         uploadpath=arguments.media+entyname
-    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex()+".txt")
 
     title=getTitle(uploadpath)
 
     if Path(uploadpath).is_dir():
         path = str(next(Path(uploadpath).glob('*/')))
-    imdbid = getimdb(path)
+
+    typeid=setTypeID(path,arguments)
     format = setType(path,arguments)
+    cat=setCat(format)
+    res=setResolution(path)
+    if check_dupe(typeid,title,arguments,cat,res)==False:
+        return
 
 
+    imdbid = getimdb(path)
     tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
-    mediapath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    media=get_mediainfo(path,mediapath,arguments)
 
-    media=open(mediapath, 'r').read()
+    mediapath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    mediaInfo=get_mediainfo(path,mediapath,arguments)
+    mediainfo=open(mediapath, 'r').read()
 
     form = {'imdb' : imdbid.movieID,
             'name' : title,
             'description' : createimages(path,arguments),
-            'category_id' : setCat(format),
+            'category_id' : cat,
             'tmdb': tmdbid,
-            'type_id': setTypeID(path,arguments),
-            'resolution_id' : setResolution(path),
+            'type_id': typeid,
+            'resolution_id' : res,
             'user_id' : arguments.userid,
             'anonymous' : arguments.anon,
             'stream'    : arguments.stream,
@@ -180,13 +119,13 @@ def create_upload_form(arguments,entyname=None):
             'tvdb'      : '0',
             'igdb'  : '0' ,
             'mal' : '0',
-            'mediainfo' : media
+            'mediainfo' : mediainfo
             }
 
     torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
     torrent=create_torrent(uploadpath,title,arguments,torrentpath)
 
-
+    output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex()+".txt")
     if arguments.txtoutput=="yes":
         txt=open(output, 'a+')
         for key, value in form.items():
@@ -298,7 +237,7 @@ def getimdb(path):
 
 def getTitle(path):
     basename=os.path.basename(path)
-    basename=basename.replace(".","")
+    basename=basename.replace("."," ")
     basename=basename.replace(".mkv","")
     basename=basename.replace(".mp4","")
     basename = basename.replace("Hulu","HULU")
@@ -415,6 +354,98 @@ def setType(path,arguments):
         format = input("Enter TV or Movie: ")
     return format
 
+def check_dupe(typeid,title,arguments,cat,res):
+    details=guessit(title)
+    title = details['title']
+    if details.get("season")!=None:
+        title=title+" S0"+str(details["season"])
+
+    if 'year' in details:
+        title = "{} {}".format(title, details['year'])
+    url="https://blutopia.xyz/api/torrents/filter?name="+title+"&categories[]="+cat+"&types[]="+typeid+"&resolution[]="+res+"&api_token=" + arguments.bluapi
+    dupes=requests.get(url=url)
+    dupes=dupes.json()
+    print(url,"\n")
+
+    number=len(dupes["data"])
+    if number==0:
+        return True
+    for entry in range(0,number):
+        print("name:",dupes["data"][entry]["attributes"]["name"])
+    upload=input("Possible Dupes Found Do you Still want to Upload?: ")
+    if upload=="y" or upload=="Y" or upload=="yes" or upload=="YES" or upload=="Yes":
+        return True
+    else:
+        return False
+
+
+def get_mediainfo(path,output,arguments):
+    mediainfo=arguments.mediainfo
+    output = open(output, "a+")
+    media=subprocess.run([mediainfo, path],stdout=output)
+
+def createimages(path,arguments):
+    #uploading
+    mtn=arguments.mtn
+    oxipng=arguments.oxipng
+
+    dir = tempfile.TemporaryDirectory()
+    from pymediainfo import MediaInfo
+    media_info = MediaInfo.parse(path)
+    for track in media_info.tracks:
+        if track.track_type == 'Video':
+            interval=math.ceil(float(track.duration)/10000)
+    path=f'"{path}"'
+    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -P -s "+ str(interval)+ " -I " +path +" -O " +dir.name
+    os.system(screenshot)
+    url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
+    text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    textinput= open(text,"w+")
+
+
+
+    #delete largest pic
+    max=0
+    delete=""
+    for filename in os.listdir(dir.name):
+       filename=dir.name +'/'+filename
+       temp=os.path.getsize(filename)
+       if(temp>max):
+            max=temp
+            delete=filename
+    os.remove(delete)
+    home= os.getcwd()
+    os.chdir(dir.name)
+
+    if arguments.compress=="=yes":
+        for filename in os.listdir(dir.name):
+            compress=oxipng + " -o 6 -r strip safe "+ filename
+            os.system(compress)
+
+
+
+    for filename in os.listdir(dir.name):
+       filename=dir.name+'/'+filename
+       image=filename
+       image = {'image': open(image,'rb')}
+       upload=requests.post(url=url,files=image)
+       upload=upload.json()['data']['url_viewer']
+       upload=requests.post(url=upload)
+       link = BeautifulSoup(upload.text, 'html.parser')
+       link = link.find('input',{'id' :'embed-code-5'})
+       link=link.attrs['value']+" "
+       textinput.write(link)
+    textinput.close()
+    textoutput= open(text,"r")
+    os.chdir(home)
+    return textoutput.read()
+
+
+def setCat(format):
+    if format=="Movie":
+        return "1"
+    if format=="TV":
+        return "2"
 
 
 
