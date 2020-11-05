@@ -9,36 +9,19 @@ import os
 import tempfile
 from guessit import guessit
 from imdb import IMDb
-ia = IMDb()
 import pickle
 import subprocess
 import math
 import configparser
 config = configparser.ConfigParser(allow_no_value=True)
+from prompt_toolkit import prompt
+from prompt_toolkit.completion import WordCompleter
+import re
 
 
 
 #TODO
 #mal
-
-# function to find the resolution of the input video file.Not Mine but very useful
-def findVideoMetadata(pathToInputVideo):
-    cmd = "ffprobe -v quiet -print_format json -show_streams"
-    args = shlex.split(cmd)
-    args.append(pathToInputVideo)
-    # run the ffprobe process, decode stdout into utf-8 & convert to JSON
-    ffprobeOutput = subprocess.check_output(args).decode('utf-8')
-    ffprobeOutput = json.loads(ffprobeOutput)
-    size=len(ffprobeOutput['streams'])
-
-    i=0
-    while i<size:
-        if ffprobeOutput['streams'][i].get('duration')!=None:
-            duration=ffprobeOutput['streams'][i].get('duration')
-            break
-        i=i+1
-    width = ffprobeOutput['streams'][0]['coded_width']
-    return duration,width
 
 
 def get_mediainfo(path,output,arguments):
@@ -108,9 +91,9 @@ def createimages(path,arguments):
     media_info = MediaInfo.parse(path)
     for track in media_info.tracks:
         if track.track_type == 'Video':
-            interval=math.ceil(float(track.duration)/6000)
+            interval=math.ceil(float(track.duration)/10000)
     path=f'"{path}"'
-    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -s "+ str(interval)+ " -I " +path +" -O " +dir.name
+    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -P -s "+ str(interval)+ " -I " +path +" -O " +dir.name
     os.system(screenshot)
     url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
     text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
@@ -164,17 +147,15 @@ def setCat(format):
 
 def create_upload_form(arguments,entyname=None):
     if entyname==None:
-        path=arguments.media
+        uploadpath=arguments.media
     else:
-        path=arguments.media+entyname
+        uploadpath=arguments.media+entyname
     output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex()+".txt")
 
-    title=getTitle(path)
-    torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    torrent=create_torrent(path,title,arguments,torrentpath)
+    title=getTitle(uploadpath)
 
-    if Path(path).is_dir():
-        path = str(next(Path(path).glob('*/')))
+    if Path(uploadpath).is_dir():
+        path = str(next(Path(uploadpath).glob('*/')))
     imdbid = getimdb(path)
     format = setType(path,arguments)
 
@@ -202,7 +183,8 @@ def create_upload_form(arguments,entyname=None):
             'mediainfo' : media
             }
 
-
+    torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    torrent=create_torrent(uploadpath,title,arguments,torrentpath)
 
 
     if arguments.txtoutput=="yes":
@@ -229,11 +211,11 @@ def create_torrent(path,basename,arguments,torrentpath):
 
    if arguments.torrentdir=="temp":
        output=torrentpath
-       torrent= "dottorrent -p -t "+arguments.announce+" "+  path +"  "+ torrentpath
+       torrent= "dottorrent -p --source BLU -t "+arguments.announce+" "+  path +"  "+ torrentpath
    else:
        output= arguments.torrentdir +"[Blutopia]" + basename + '.torrent'
        outputquoted=f'"{output}"'
-       torrent= "dottorrent -p -t "+ arguments.announce+" "+ path +" "+outputquoted
+       torrent= "dottorrent -p --source BLU -t "+ arguments.announce+" "+ path +" "+outputquoted
    print(torrent,"\n")
    os.system(torrent)
    return output
@@ -275,13 +257,31 @@ def getimdb(path):
    if 'year' in details:
         title = "{} {}".format(title, details['year'])
    results = IMDb().search_movie(title)
-   if len(results) ==0:
+   while  len(results)==0 :
         print("Unable to find imdb")
-        id = input("Enter imdb just what comes after tt: ")
-        id=IMDb().get_movie(id)
-   else:
-       id=IMDb().search_movie(title)[0]
-   return id
+        id = input("Enter Title or imdb(no tt) ")
+        if re.search("tt",id)!=None:
+            results=IMDb().get_movie(id)
+            break
+        else:
+            results = IMDb().search_movie(id)
+
+
+
+   if isinstance(results, list)!=True:
+       return results
+   counter=-1
+   accept=False
+   while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y" and counter<len(results):
+       counter=counter+1
+       print(results[counter]["title"]," ",results[counter]["year"])
+       accept=input(" is this Search result correct?:")
+       if len(accept)==0:
+           counter=counter-1
+   return results[counter]
+
+
+
 
 
 
@@ -318,9 +318,10 @@ def getTitle(path):
     correct=input("Title is it Correct for Blu?:")
 
     while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES":
-        print("\n","Press Number for an Examples","\n","\n","Movies:1=DVD  2=DVD REMUX 3=HDTV 4=Blu-ray Encode 5=Blu-ray Remux 6=Full Blu-ray Disc 7=Web"+"\n" \
-        +"TV:8=DVD  9=DVD REMUX 10=Web 11=HDTV 12=Blu-ray Encode 13=Blu-ray Remux 14=Full Blu-ray Disc 15=Anime","\n","\n")
-        newname=input("Enter Correct Title or Example Number: ")
+        print("\n","Press Number for an Example","\n","\n","Movies:1=DVD ; 2=DVD REMUX ; 3=HDTV ; 4=Blu-ray Encode ; 5=Blu-ray Remux ; 6=*Full Blu-ray Disc ; 7=Web"+"\n" \
+        +"TV:8=DVD ;  9=DVD REMUX ; 10=Web ; 11=HDTV  ; 12=Blu-ray Encode ; 13=Blu-ray Remux ; 14=Full Blu-ray Disc ; 15=Anime","\n","\n")
+        title_completer = WordCompleter([basename])
+        newname = prompt('Enter Title: ', completer=title_completer,complete_while_typing=True)
 
 
         if(examples.get(newname)!=None):
@@ -337,17 +338,18 @@ def setTypeID(path,arguments):
     if arguments.autotype=="yes":
         details=guessit(path)
         source = details['source']
-        remux=details.get('other')
 
 
 
-        if (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and remux==None:
-            source = '12'
-        elif (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and remux!=None:
+        if (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and re.search("[rR][eE][mM][uU][xX]",path)==None and re.search("[xX]26[45]",path)==None:
+            source = '1'
+        elif (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and re.search("[rR][eE][mM][uU][xX]",path)!=None:
             source = '3'
-        elif source=="Web" and remux=="remux":
+        elif (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and re.search("[xX]26[45]",path)!=None:
+            source = '12'
+        elif source=="Web" and (re.search("[wW][eE][bB]-[dD][lL]",path)!=None or re.search("[wW][eE][bB][dD][lL]",path)!=None):
             source = '4'
-        elif source=="Web" and remux!="remux":
+        elif source=="Web" and (re.search("[wW][eE][bB]-[rR][iI][pP]",path)!=None or re.search("[wW][eE][bB][rR][iI][pP]",path)!=None):
             source = '5'
         elif source=="Analog HDTV" or source=="HDTV" or source=="Ultra HDTV" or source=="TV":
             source = '6'
