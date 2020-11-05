@@ -20,8 +20,6 @@ import re
 
 
 
-#TODO
-#mal
 
 
 
