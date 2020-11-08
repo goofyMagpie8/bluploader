@@ -17,6 +17,7 @@ config = configparser.ConfigParser(allow_no_value=True)
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 import re
+from simple_term_menu import TerminalMenu
 
 
 
@@ -86,7 +87,9 @@ def create_upload_form(arguments,entyname=None):
     title=getTitle(uploadpath)
 
     if Path(uploadpath).is_dir():
-        path = str(next(Path(uploadpath).glob('*/')))
+          for enty in os.scandir(uploadpath):
+              if re.search(".mkv",enty.name)!=None or re.search(".mp4",enty.name)!=None:
+                  path=uploadpath+"/"+enty.name
 
     typeid=setTypeID(path,arguments)
     format = setType(path,arguments)
@@ -209,6 +212,7 @@ def getimdb(path):
        return results
    counter=-1
    accept=False
+   print("Searching for movie/TV Show on IMDB","\n")
    while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y" and counter<len(results):
        counter=counter+1
        print(results[counter]["title"]," ",results[counter]["year"])
@@ -473,10 +477,12 @@ if __name__ == '__main__':
     if os.path.isdir(arguments.media)==False:
         create_upload_form(arguments)
         quit()
-    for enty in os.scandir(arguments.media):
-        path=arguments.media+enty.name
+    keepgoing = "Yes"
+    choices=os.listdir(arguments.media)
+    menu = TerminalMenu(choices)
+    while keepgoing=="Yes" or keepgoing=="yes" or keepgoing=="Y" or keepgoing=="y"  or keepgoing=="YES":
+        menu_entry_index = menu.show()
+        path=choices[menu_entry_index]
         print("\n")
-        print(path)
-        upload = input("Do you want to upload this torrent yes or no: ")
-        if upload=="yes" or upload=="Yes" or upload=="Y" or upload=="y"  or upload=="YES":
-            create_upload_form(arguments,enty.name)
+        create_upload_form(arguments,path)
+        keepgoing=input("Upload Another File: ")
