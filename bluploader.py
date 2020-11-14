@@ -46,8 +46,6 @@ def createconfig(arguments):
         arguments.torrentdir=config['general']['torrentdir']
     if arguments.autotype==None:
         arguments.autotype=config['general']['autotype']
-    if arguments.anon==None:
-        arguments.anon=config['general']['anon']
     if arguments.stream==None:
         arguments.stream=config['general']['stream']
     if arguments.anon==None:
@@ -291,7 +289,7 @@ def setTypeID(path,arguments):
             source = '3'
         elif (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and re.search("[xX]26[45]",path)!=None:
             source = '12'
-        elif source=="Web" and (re.search("[wW][eE][bB]-[dD][lL]",path)!=None or re.search("[wW][eE][bB][dD][lL]",path)!=None):
+        elif source=="Web" and (re.search("[wW][eE][bB]-[dD][lL]",path)!=None or re.search("[wW][eE][bB][dD][lL]",path)!=None or re.search("[wW][eE][bB]",path)!=None) and (re.search("[wW][eE][bB]-[rR][iI][pP]",path)==None and re.search("[wW][eE][bB][rR][iI][pP]",path)==None) :
             source = '4'
         elif source=="Web" and (re.search("[wW][eE][bB]-[rR][iI][pP]",path)!=None or re.search("[wW][eE][bB][rR][iI][pP]",path)!=None):
             source = '5'
@@ -427,8 +425,7 @@ def createimages(path,arguments):
 
 
     for filename in os.listdir(dir.name):
-       filename=dir.name+'/'+filename
-       image=filename
+       image=dir.name+'/'+filename
        image = {'image': open(image,'rb')}
        upload=requests.post(url=url,files=image)
        upload=upload.json()['data']['url_viewer']
