@@ -84,14 +84,14 @@ def create_upload_form(arguments,entyname=None):
 
     title=getTitle(uploadpath)
 
-    #iF The Upload path is a directory pick a video file for screenshots,mediainfo,etc
+    #iF The Upload path is a diresctory pick a video file for screenshots,mediainfo,etc
     if Path(uploadpath).is_dir():
           for enty in os.scandir(uploadpath):
               if re.search(".mkv",enty.name)!=None or re.search(".mp4",enty.name)!=None:
                   path=uploadpath+"/"+enty.name
-    #Else just use the file itself              
+    #Else just use the file itself
     else:
-        path=uploadpath            
+        path=uploadpath
 
     typeid=setTypeID(path,arguments)
     format = setType(path,arguments)
@@ -199,12 +199,11 @@ def getimdb(path):
    if 'year' in details:
         title = "{} {}".format(title, details['year'])
    results = IMDb().search_movie(title)
-   while  len(results)==0 :
+   if len(results)==0 :
         print("Unable to find imdb")
         id = input("Enter Title or imdb(no tt) ")
         if re.search("tt",id)!=None:
             results=IMDb().get_movie(id)
-            break
         else:
             results = IMDb().search_movie(id)
 
@@ -212,15 +211,20 @@ def getimdb(path):
 
    if isinstance(results, list)!=True:
        return results
-   counter=-1
+
+   counter=0
    accept=False
    print("Searching for movie/TV Show on IMDB","\n")
    while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y" and counter<len(results):
-       counter=counter+1
+       if counter==6:
+           print("correct title not found")
+           id = input("Enter imdb(no tt) ")
+           results=IMDb().get_movie(id)
+           return results
        print(results[counter]["title"]," ",results[counter]["year"])
        accept=input(" is this Search result correct?:")
-       if len(accept)==0:
-           counter=counter-1
+       if len(accept)==0 or accept=="N" or accept=="No" or accept=="n" or accept=="NO":
+            counter=counter+1
    return results[counter]
 
 
@@ -263,7 +267,7 @@ def getTitle(path):
 
     correct=input("Title is it Correct for Blu?:")
 
-    while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES":
+    while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES" and correct!="Y":
         print("\n","Press Number for an Example","\n","\n","Movies:1=DVD ; 2=DVD REMUX ; 3=HDTV ; 4=Blu-ray Encode ; 5=Blu-ray Remux ; 6=*Full Blu-ray Disc ; 7=Web"+"\n" \
         +"TV:8=DVD ;  9=DVD REMUX ; 10=Web ; 11=HDTV  ; 12=Blu-ray Encode ; 13=Blu-ray Remux ; 14=Full Blu-ray Disc ; 15=Anime","\n","\n")
         title_completer = WordCompleter([basename])
@@ -497,7 +501,7 @@ if __name__ == '__main__':
             print('[',index,item,']',end="  ")
             if (i-1)%2==0:
                 print("\n")
-        print("\n","\n")       
+        print("\n","\n")
         myindex=input("Enter the INDEX of the upload: ")
         path=choices[int(myindex)]
         print("\n")
