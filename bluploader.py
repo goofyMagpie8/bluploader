@@ -17,7 +17,7 @@ config = configparser.ConfigParser(allow_no_value=True)
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 import re
-from simple_term_menu import TerminalMenu
+
 
 
 
@@ -476,10 +476,23 @@ if __name__ == '__main__':
         quit()
     keepgoing = "Yes"
     choices=os.listdir(arguments.media)
-    menu = TerminalMenu(choices)
+    if os.name != 'nt':
+        from simple_term_menu import TerminalMenu
+        menu = TerminalMenu(choices)
+        while keepgoing=="Yes" or keepgoing=="yes" or keepgoing=="Y" or keepgoing=="y"  or keepgoing=="YES":
+            menu_entry_index = menu.show()
+            path=choices[menu_entry_index]
+            print("\n")
+            create_upload_form(arguments,path)
+            keepgoing=input("Upload Another File: ")
+        quit()
+
     while keepgoing=="Yes" or keepgoing=="yes" or keepgoing=="Y" or keepgoing=="y"  or keepgoing=="YES":
-        menu_entry_index = menu.show()
-        path=choices[menu_entry_index]
+        for (i, item) in enumerate(choices):
+            index="INDEX:"+str(i)
+            print(index,item)
+        myindex=input("Enter the INDEX of the upload: ")
+        path=choices[int(myindex)]
         print("\n")
         create_upload_form(arguments,path)
         keepgoing=input("Upload Another File: ")
