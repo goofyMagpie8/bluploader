@@ -216,7 +216,7 @@ def getimdb(path):
    accept=False
    print("Searching for movie/TV Show on IMDB","\n")
    while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y" and counter<len(results):
-       if counter==6:
+       if counter==5:
            print("correct title not found")
            id = input("Enter imdb(no tt) ")
            results=IMDb().get_movie(id)
