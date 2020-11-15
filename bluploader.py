@@ -490,7 +490,10 @@ if __name__ == '__main__':
     while keepgoing=="Yes" or keepgoing=="yes" or keepgoing=="Y" or keepgoing=="y"  or keepgoing=="YES":
         for (i, item) in enumerate(choices):
             index="INDEX:"+str(i)
-            print(index,item)
+            print('[',index,item,']',end="  ")
+            if (i-1)%2==0:
+                print("\n")
+        print("\n","\n")       
         myindex=input("Enter the INDEX of the upload: ")
         path=choices[int(myindex)]
         print("\n")
