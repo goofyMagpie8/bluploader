@@ -84,7 +84,7 @@ def create_upload_form(arguments,entyname=None):
 
     title=getTitle(uploadpath)
 
-    #iF The Upload path is a diresctory pick a video file for screenshots,mediainfo,etc
+    #iF The Upload path is a directory pick a video file for screenshots,mediainfo,etc
     if Path(uploadpath).is_dir():
           for enty in os.scandir(uploadpath):
               if re.search(".mkv",enty.name)!=None or re.search(".mp4",enty.name)!=None:
