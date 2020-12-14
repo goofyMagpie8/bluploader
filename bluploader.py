@@ -66,8 +66,6 @@ def createconfig(arguments):
         arguments.mtn=config['general']['mtn']
     if arguments.oxipng=="oxipng" and len(config['general']['oxipng'])!=0:
         arguments.oxipng=config['general']['oxipng']
-    # if arguments.mediainfo=="mediainfo" and len(config['general']['mediainfo'])!=0:
-    #     arguments.mediainfo=config['general']['mediainfo']
     if arguments.compress==None and config['general']['compress']=="yes":
         arguments.compress=config['general']['compress']
 
@@ -97,6 +95,12 @@ def create_upload_form(arguments,entyname=None):
     typeid=setTypeID(path,arguments)
     format = setType(path,arguments)
     title=getTitle(uploadpath,typeid,format)
+    print(title)
+    correct=input("Title is it Correct for Blu?:")
+    while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES" and correct!="Y":
+         title_completer = WordCompleter([title])
+         title = prompt('Enter Title: ', completer=title_completer,complete_while_typing=True)
+         correct="y"
     cat=setCat(format)
     res=setResolution(path)
     if check_dupe(typeid,title,arguments,cat,res)==False:
@@ -106,9 +110,8 @@ def create_upload_form(arguments,entyname=None):
     imdbid = getimdb(path)
     tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
 
-    mediapath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    mediainfo=get_mediainfo(path,mediapath,arguments)
-    # mediainfo=open(mediapath, 'r').read()
+
+
 
     form = {'imdb' : imdbid.movieID,
             'name' : title,
@@ -124,7 +127,7 @@ def create_upload_form(arguments,entyname=None):
             'tvdb'      : '0',
             'igdb'  : '0' ,
             'mal' : '0',
-            'mediainfo' : mediainfo
+            'mediainfo' : get_mediainfo(path)
             }
 
     torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
@@ -453,10 +456,7 @@ def check_dupe(typeid,title,arguments,cat,res):
         return False
 
 
-def get_mediainfo(path,output,arguments):
-    # mediainfo=arguments.mediainfo
-    # output = open(output, "a+")
-    # media=subprocess.run([mediainfo, path],stdout=output)
+def get_mediainfo(path):
     media_info = MediaInfo.parse(path,output="STRING")
     media_info=media_info.encode(encoding='utf8')
     media_info=media_info.decode('utf8', 'strict')
@@ -467,7 +467,6 @@ def createimages(path,arguments):
     oxipng=arguments.oxipng
 
     dir = tempfile.TemporaryDirectory()
-    from pymediainfo import MediaInfo
     media_info = MediaInfo.parse(path)
     for track in media_info.tracks:
         if track.track_type == 'Video':
@@ -544,7 +543,6 @@ if __name__ == '__main__':
     parser.add_argument("--announce",default=None)
     parser.add_argument("--mtn",default="mtn")
     parser.add_argument("--oxipng",default="oxipng")
-    parser.add_argument("--mediainfo",default="mediainfo")
     arguments = parser.parse_args()
     arguments=createconfig(arguments)
 
