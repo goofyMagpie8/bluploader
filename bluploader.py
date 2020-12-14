@@ -17,7 +17,7 @@ config = configparser.ConfigParser(allow_no_value=True)
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 import re
-
+from pymediainfo import MediaInfo
 
 
 
@@ -66,8 +66,8 @@ def createconfig(arguments):
         arguments.mtn=config['general']['mtn']
     if arguments.oxipng=="oxipng" and len(config['general']['oxipng'])!=0:
         arguments.oxipng=config['general']['oxipng']
-    if arguments.mediainfo=="mediainfo" and len(config['general']['mediainfo'])!=0:
-        arguments.mediainfo=config['general']['mediainfo']
+    # if arguments.mediainfo=="mediainfo" and len(config['general']['mediainfo'])!=0:
+    #     arguments.mediainfo=config['general']['mediainfo']
     if arguments.compress==None and config['general']['compress']=="yes":
         arguments.compress=config['general']['compress']
 
@@ -82,19 +82,21 @@ def create_upload_form(arguments,entyname=None):
     else:
         uploadpath=arguments.media+entyname
 
-    title=getTitle(uploadpath)
 
     #iF The Upload path is a diresctory pick a video file for screenshots,mediainfo,etc
-    if Path(uploadpath).is_dir():
+    if os.path.isdir(uploadpath):
+          print("yes")
           for enty in os.scandir(uploadpath):
               if re.search(".mkv",enty.name)!=None or re.search(".mp4",enty.name)!=None:
                   path=uploadpath+"/"+enty.name
     #Else just use the file itself
     else:
         path=uploadpath
+        print("no")
 
     typeid=setTypeID(path,arguments)
     format = setType(path,arguments)
+    title=getTitle(uploadpath,typeid,format)
     cat=setCat(format)
     res=setResolution(path)
     if check_dupe(typeid,title,arguments,cat,res)==False:
@@ -105,8 +107,8 @@ def create_upload_form(arguments,entyname=None):
     tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
 
     mediapath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    mediaInfo=get_mediainfo(path,mediapath,arguments)
-    mediainfo=open(mediapath, 'r').read()
+    mediainfo=get_mediainfo(path,mediapath,arguments)
+    # mediainfo=open(mediapath, 'r').read()
 
     form = {'imdb' : imdbid.movieID,
             'name' : title,
@@ -216,7 +218,7 @@ def getimdb(path):
    accept=False
    print("Searching for movie/TV Show on IMDB","\n")
    while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y" and counter<len(results):
-       if counter==5:
+       if counter==6:
            print("correct title not found")
            id = input("Enter imdb(no tt) ")
            results=IMDb().get_movie(id)
@@ -243,52 +245,116 @@ def getimdb(path):
 
 
 
-def getTitle(path):
-    basename=os.path.basename(path)
-    basename=basename.replace("."," ")
-    basename=basename.replace(".mkv","")
-    basename=basename.replace(".mp4","")
-    basename = basename.replace("Hulu","HULU")
-    basename = basename.replace("DD+","DD+ ")
-    basename = basename.replace("DDP","DD+ ")
-    basename = basename.replace("H 264","H.264")
-    basename = basename.replace("H 265","H.265")
-    basename = basename.replace("H264","H.264")
-    basename = basename.replace("H265","H.265")
-    basename = basename.replace("DD5 1","DD5.1")
-    basename = basename.replace("5 1","5.1")
-    basename = basename.replace("X26","x264")
-    basename = basename.replace("Amazon","AMZN")
-    basename = basename.replace("Netflix","NF")
-    print(basename,"\n")
+def getTitle(path,source,format):
+    input_title=os.path.basename(path)
+    output_title=""
+    info=guessit(input_title)
+    name=info.get("title")
+    year=info.get("year","")
+    res=  info.get("screen_size","")
+    group=info.get("release_group","Unknown")
+    channels=info.get("audio_channels","")
+    codec=info.get("video_codec")
+    audio=getAudio(info.get("audio_codec",""),info.get("audio_channels",""), info.get("audio_profile",""))
+    extra=get_extra(input_title,year,name,res,audio,channels,group)
+    season="S0"+info.get("season","")
+    if source=="1" and format=="Movie" and re.search("[bB][lL][uU]",input_title)!=None:
+        output_title=f"{name} {year} {extra} {res} Blu-ray AVC "
+    elif source=="1" and format=="Movie" and re.search("[dD][vV][dD]",input_title)!=None:
+        output_title=f"{name} {year} {extra} {res} DVD "
+    elif source=="3" and format=="Movie" and re.search("[bB][lL][uU]",input_title)!=None:
+        output_title=f"{name} {year} {res} BluRay REMUX "
+    elif source=="3" and format=="Movie" and re.search("[dD][vV][dD]",path)!=None:
+        output_title=f"{name} {year} {res} DVD REMUX "
+    elif source=="12" and format=="Movie":
+        output_title=f"{name} {year} {res} BluRay "
+        group
+    elif source=="4"  and format=="Movie":
+        output_title=f"{name} {year} {res} WEB-DL "
+    elif source=="5"  and format=="Movie":
+        output_title=f"{name} {year} {res} WEB-RIP "
+    elif source=="6"  and format=="Movie":
+        output_title=f"{name} {year} {res} HDTV "
 
 
-    examples={"1":"DVD: Name Year Encoding system Format Source Audio-Tag"+"\n"+"Clinton and Nadine 1988 PAL DVD5 DD 5.1-CultFilms","2":"DVD Remux: Name Year Encoding system Format Source Audio-Tag"+"\n"+"Clinton and Nadine 1988 PAL DVD REMUX DD 5.1-BLURANiUM","3":"HDTV:Name Year Resolution Source Audio Video-encode-Tag"+"\n"+"The Sasquatch Gang 2006 720p HDTV DD 5.1 x264-DON","4":"Blu-ray Encode: Name Year Resolution Source Audio Video-encode-Tag"+"\n"+"Goodfellas 1990 1080p BluRay DTS 5.1 x264-DON","5":"Blu-ray Remux: Name Year Resolution Source Video-codec Audio-Tag"+"\n"+"Motherless Brooklyn 2019 1080p BluRay REMUX AVC DTS-HD MA 5.1-KRaLiMaRKo","6":"Full Blu-ray Disc: Name Year Resolution Region Source Video-codec Audio-Tag"+"\n"+"The Green Hornet 2011 3D 1080p NOR Blu-ray AVC DTS-HD MA 5.1-HDBEE","7":"WEB: Name Year Resolution Source Rip-type Audio Video-codec-Tag"+"\n"+"Long Shot 2019 2160p WEB-DL DD+ 5.1 HDR H.265-PHOENiX","8":"DVD: Name S##E## Encoding system Format Audio-Tag"+"\n"+"Green Wing COMPLETE NTSC 18xDVD5 DD 2.0","9":"DVD Remux: Name S##E## Encoding system Format Audio-Tag"+"\n"+"Rose Red COMPLETE NTSC DVD9 REMUX DD 5.1","10":"WEB: Name S##E## Resolution Source Rip-type Audio Video-codec-Tag"+"\n"+"Dracula 2020 S01E01 2160p NF WEBRip DD+ 5.1 H.264-NTb","11":"HDTV: Name S##E## Resolution Source Audio Video-encode-Tag"+"\n"+"Samantha Who? S01 720p HDTV DD 5.1 x264-MiXED","12":"Blu-ray Encode: Name S##E## Resolution Source Audio Video-encode-Tag"+"\n"+"Westworld S02 1080p UHD BluRay DTS 5.1 HDR x265-LYS","13":"Blu-ray Remux: Name S##E## Resolution Source Video-codec Audio-Tag"+"\n"+"Game of Thrones S08 REPACK 2160p UHD BluRay REMUX HDR HEVC Atmos 7.1-FraMeSToR","14":"Full Blu-ray Disc: Name S##E## Resolution Region Source Video-codec Audio-Tag"+"\n"+"Breaking Bad S01 1080p AUS Blu-ray AVC DTS-HD MA 5.1-CultFilms™","14":"Full Blu-ray Disc: Name S##E## Resolution Region Source Video-codec Audio-Tag"+"\n"+"Breaking Bad S01 1080p AUS Blu-ray AVC DTS-HD MA 5.1-CultFilms™","15":"Anime: Name S##E## Resolution Source Video Audio Sub/Dub-Tag"+"\n"+"Haikyuu!! S03E06 1080p WEB-DL English Dubbed AAC 2.0 H.264-Golumpa"}
-
-    correct=input("Title is it Correct for Blu?:")
-
-    while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES" and correct!="Y":
-        print("\n","Press Number for an Example","\n","\n","Movies:1=DVD ; 2=DVD REMUX ; 3=HDTV ; 4=Blu-ray Encode ; 5=Blu-ray Remux ; 6=*Full Blu-ray Disc ; 7=Web"+"\n" \
-        +"TV:8=DVD ;  9=DVD REMUX ; 10=Web ; 11=HDTV  ; 12=Blu-ray Encode ; 13=Blu-ray Remux ; 14=Full Blu-ray Disc ; 15=Anime","\n","\n")
-        title_completer = WordCompleter([basename])
-        newname = prompt('Enter Title: ', completer=title_completer,complete_while_typing=True)
 
 
-        if(examples.get(newname)!=None):
-            print(examples[newname])
-            print(basename)
+    elif source=="1" and format=="TV" and re.search("[bB][lL][uU]",input_title)!=None:
+        output_title=f"{name} {season} {year} {extra} {res} Blu-ray AVC "
+    elif source=="1" and format=="TV" and re.search("[dD][vV][dD]",input_title)!=None:
+        output_title=f"{name} {year} {extra} {res} DVD "
+    elif source=="3" and format=="TV" and re.search("[bB][lL][uU]",input_title)!=None:
+        output_title=f"{name} {year} {res} BluRay REMUX "
+    elif source=="3" and format=="Movie" and re.search("[dD][vV][dD]",path)!=None:
+        output_title=f"{name} {season} {year} {res} DVD REMUX "
+    elif source=="12" and format=="TV":
+        output_title=f"{name} {season} {year} {res} BluRay "
+    elif source=="4"  and format=="TV":
+        output_title=f"{name} {season} {year} {res} WEB-DL "
+    elif source=="5"  and format=="TV":
+        output_title=f"{name} {season} {year} {res} WEB-RIP "
+    elif source=="6"  and format=="TV":
+        output_title=f"{name} {season} {year} {res} HDTV "
+    output_title=re.sub("\."," ",output_title)
+    output_title=re.sub("  "," ",output_title)
+    tag=getTag(source,audio,group,codec)
+    output_title=f"{output_title}{tag}"
+    return output_title
 
 
-        else:
-            basename=newname
-            correct=input("Are you sure the title is correct now: ")
-    return basename
+
+    return output_title
+def getTag(source,audio,group,codec):
+    if source=="12" or source=="6":
+        codec='x'+codec[2:]
+        tag=f"{audio} {codec}-{group}"
+    elif source=="4" or source=="5":
+        tag=f"{audio} {codec}-{group}"
+    else:
+        tag=f"{audio}-{group}"
+    tag=re.sub("  "," ",tag)
+    tag=re.sub("^\s","",tag)
+    return tag
+
+
+def getAudio(audio,channels,profile):
+    output=""
+
+    if isinstance(audio,list):
+        for element in audio:
+            output=output+" "+element
+    elif audio=="":
+        pass
+    else:
+        output=output+audio
+    if profile=="Master Audio":
+        output=output+" MA"
+    if channels!="":
+        output=output+" "+channels
+    return output
+
+def get_extra(title,year,name,res,audio,channels,group):
+    title=re.sub("\."," ",title)
+    name=re.sub("\."," ",name)
+    extra=re.sub(name,"",title)
+    title=re.sub("\."," ",extra)
+    extra=re.sub(str(year),"",extra)
+    extra=re.sub("-"+group,"",extra)
+    extra=re.sub(group,"",extra)
+    extra=re.sub(res,"",extra)
+    extra=re.sub(audio,"",extra)
+    extra=re.sub(channels,"",extra)
+    extra=re.sub("[bB][lL][uU][rR][aA][yY]","",extra)
+    extra=re.sub("[bB][lL][uU]-[rR][aA][yY]","",extra)
+    extra=re.sub("[dD][tT][sS][hH][dD]-[mM][aA]","",extra)
+    extra=re.sub("[aA][tT][mM][oO][sS]","",extra)
+    extra=re.sub("  ","",extra)
+    return extra
 
 def setTypeID(path,arguments):
     if arguments.autotype=="yes":
         details=guessit(path)
         source = details['source']
-
 
 
         if (source=="Blu-ray" or source=="HD-DVD" or source=="Ultra HD Blu-ray") and re.search("[rR][eE][mM][uU][xX]",path)==None and re.search("[xX]26[45]",path)==None:
@@ -388,10 +454,13 @@ def check_dupe(typeid,title,arguments,cat,res):
 
 
 def get_mediainfo(path,output,arguments):
-    mediainfo=arguments.mediainfo
-    output = open(output, "a+")
-    media=subprocess.run([mediainfo, path],stdout=output)
-
+    # mediainfo=arguments.mediainfo
+    # output = open(output, "a+")
+    # media=subprocess.run([mediainfo, path],stdout=output)
+    media_info = MediaInfo.parse(path,output="STRING")
+    media_info=media_info.encode(encoding='utf8')
+    media_info=media_info.decode('utf8', 'strict')
+    return media_info
 def createimages(path,arguments):
     #uploading
     mtn=arguments.mtn
