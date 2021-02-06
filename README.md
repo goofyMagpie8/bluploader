@@ -1,4 +1,9 @@
-Python3 Requirements:   
+Requires 
+Python 3.6 or higher
+
+
+
+Python3.6 Modules Requirements:   
   requests  
   BeautifulSoup  
   docopt  
