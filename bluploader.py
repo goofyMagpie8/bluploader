@@ -1,16 +1,15 @@
 #! /usr/bin/env python3
 import requests
 from bs4 import BeautifulSoup
-import subprocess
 from argparse import ArgumentParser
 from pathlib import Path
 import json
 import os
+import subprocess
 import tempfile
 from guessit import guessit
 from imdb import IMDb
 import pickle
-import subprocess
 import math
 import configparser
 config = configparser.ConfigParser(allow_no_value=True)
@@ -18,6 +17,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 import re
 from pymediainfo import MediaInfo
+from threading import Thread
 
 
 
@@ -25,104 +25,153 @@ from pymediainfo import MediaInfo
 
 
 
-def createconfig(arguments):
+
+
+def createconfig(args):
     try:
-        configpath=arguments.config
+        configpath=args.config
 
         config.read(configpath)
 
     except:
         print("something went wrong")
-        return arguments
+        return args
 
 
-    if arguments.imgbb==None:
-        arguments.imgbb=config['api']['imgbb']
-    if arguments.bluapi==None:
-        arguments.bluapi=config['api']['bluapi']
-    if arguments.tmdb==None:
-        arguments.tmdb=config['api']['tmdb']
-    if arguments.torrentdir==None:
-        arguments.torrentdir=config['general']['torrentdir']
-    if arguments.autotype==None:
-        arguments.autotype=config['general']['autotype']
-    if arguments.stream==None:
-        arguments.stream=config['general']['stream']
-    if arguments.anon==None:
-        arguments.anon=config['general']['anon']
-    if arguments.userid==None:
-        arguments.userid=config['general']['userid']
-    if arguments.txtoutput==None:
-        arguments.txtoutput=config['general']['txtoutput']
-    if arguments.autoupload==None:
-        arguments.autoupload=config['general']['autoupload']
-    if arguments.media==None:
-        arguments.media=config['general']['media']
-    if arguments.font==None:
-        arguments.font=config['general']['font']
-    if arguments.announce==None:
-        arguments.announce=config['general']['announce']
-    if arguments.mtn=="mtn" and len(config['general']['mtn'])!=0:
-        arguments.mtn=config['general']['mtn']
-    if arguments.oxipng=="oxipng" and len(config['general']['oxipng'])!=0:
-        arguments.oxipng=config['general']['oxipng']
-    if arguments.compress==None and config['general']['compress']=="yes":
-        arguments.compress=config['general']['compress']
+    if args.imgbb==None:
+        args.imgbb=config['api']['imgbb']
+    if args.bluapi==None:
+        args.bluapi=config['api']['bluapi']
+    if args.tmdb==None:
+        args.tmdb=config['api']['tmdb']
+    if args.torrentdir==None:
+        args.torrentdir=config['general']['torrentdir']
+    if args.autotype==None:
+        args.autotype=config['general']['autotype']
+    if args.stream==None:
+        args.stream=config['general']['stream']
+    if args.anon==None:
+        args.anon=config['general']['anon']
+    if args.userid==None:
+        args.userid=config['general']['userid']
+    if args.txtoutput==None:
+        args.txtoutput=config['general']['txtoutput']
+    if args.autoupload==None:
+        args.autoupload=config['general']['autoupload']
+    if args.media==None:
+        args.media=config['general']['media']
+    if args.font==None:
+        args.font=config['general']['font']
+    if args.announce==None:
+        args.announce=config['general']['announce']
+    if args.mtn=="mtn" and len(config['programs']['mtn'])!=0:
+        args.mtn=config['programs']['mtn']
+    if args.dottorrent==None and len(config['programs']['dottorrent'])>0 :
+        args.dottorrent=config['programs']['dottorrent']
+    if args.oxipng=="oxipng" and len(config['programs']['oxipng'])!=0:
+        args.oxipng=config['programs']['oxipng']
+    if args.compress==None and config['general']['compress']=="yes":
+        args.compress=config['general']['compress']
+    return args
 
-    return arguments
 
+def create_binaries(args):
+    print("Setting up Binaries")
+    workingdir=os.path.dirname(os.path.abspath(__file__))
+    if args.dottorrent==None:
+        if which("dottorrent")!=None and len(which('dottorrent'))>0:
+            args.dottorrent=which('dottorrent')
+        else:
+            dottorrent=os.path.join(workingdir,"bin","dottorrent")
+            args.dottorrent=dottorrent
+    if args.oxipng==None and sys.platform=="linux":
+        if which("oxipng")!=None and len(which('oxipng'))>0:
+            args.oxipng=which('oxipng')
+        else:
+            oxipng=os.path.join(workingdir,"bin","oxipng")
+            args.oxipng=oxipng
 
+    if args.oxipng==None and sys.platform=="win32":
+       if which("oxipng.exe")!=None and len(which('oxipng.exe'))>0:
+            args.oxipng=which('oxipng.exe')
+       else:
+           oxipng=os.path.join(workingdir,"bin","oxipng.exe")
+           args.oxipng=oxipng
+
+    if args.mtn==None and sys.platform=="linux":
+        if which("mtn")!=None and len(which('mtn'))>0:
+            args.mtn=which('mtn')
+        else:
+            mtn=os.path.join(workingdir,"bin","mtn")
+            args.mtn=mtn
+    if args.mtn==None and sys.platform=="win32":
+        if which("mtn")!=None and len(which('mtn.exe'))>0:
+            args.mtn=which('mtn.exe')
+        else:
+            mtn=os.path.join(workingdir,"bin","mtn-win32","bin","mtn.exe")
+            args.mtn=mtn
 
 
 def create_upload_form(arguments,entyname=None):
     if entyname==None:
-        uploadpath=arguments.media
+        uploadpath=args.media
     else:
-        uploadpath=arguments.media+entyname
+        uploadpath=args.media+entyname
 
 
     #iF The Upload path is a diresctory pick a video file for screenshots,mediainfo,etc
     if os.path.isdir(uploadpath):
-          print("yes")
           for enty in os.scandir(uploadpath):
               if re.search(".mkv",enty.name)!=None or re.search(".mp4",enty.name)!=None:
                   path=uploadpath+"/"+enty.name
     #Else just use the file itself
     else:
         path=uploadpath
-        print("no")
 
-    typeid=setTypeID(path,arguments)
-    format = setType(path,arguments)
-    title=getTitle(uploadpath,typeid,format)
+
+    typeid=setTypeID(path,args)
+    setType(path,args)
+    title=getTitle(uploadpath,args,typeid)
     print(title)
     correct=input("Title is it Correct for Blu?:")
-    while correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES" and correct!="Y":
+
+
+    if correct!="y" and correct!="yes" and correct!="Yes" and correct!="YES" and correct!="Y":
          title_completer = WordCompleter([title])
          title = prompt('Enter Title: ', completer=title_completer,complete_while_typing=True)
-         correct="y"
-    cat=setCat(format)
+
+    dir = tempfile.TemporaryDirectory()
+    imgs = Thread(target = create_images, args = (path,args,dir))
+    imgs.start()
+    torrentpath= args.torrentdir +"[Blutopia]" + title + '.torrent'
+    # torrentpath=f'"{torrentpath}"'
+    torrent = Thread(target = create_torrent, args = (uploadpath,args,torrentpath))
+    torrent.start()
+
+    cat=setCat(args.format)
     res=setResolution(path)
-    if check_dupe(typeid,title,arguments,cat,res)==False:
+    if check_dupe(typeid,title,args,cat,res)==False:
         return
 
 
     imdbid = getimdb(path)
-    tmdbid=IMDBtoTMDB(imdbid.movieID,format,arguments)
+    tmdbid=IMDBtoTMDB(imdbid.movieID,args)
+    torrent.join()
+    imgs.join()
 
 
 
 
     form = {'imdb' : imdbid.movieID,
             'name' : title,
-            'description' : createimages(path,arguments),
+            'description' : upload_image(dir,args),
             'category_id' : cat,
             'tmdb': tmdbid,
             'type_id': typeid,
             'resolution_id' : res,
-            'user_id' : arguments.userid,
-            'anonymous' : arguments.anon,
-            'stream'    : arguments.stream,
+            'user_id' : args.userid,
+            'anonymous' : args.anon,
+            'stream'    : args.stream,
             'sd'        : is_sd(path),
             'tvdb'      : '0',
             'igdb'  : '0' ,
@@ -130,11 +179,10 @@ def create_upload_form(arguments,entyname=None):
             'mediainfo' : get_mediainfo(path)
             }
 
-    torrentpath=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    torrent=create_torrent(uploadpath,title,arguments,torrentpath)
+
 
     output=os.path.join(tempfile.gettempdir(), os.urandom(24).hex()+".txt")
-    if arguments.txtoutput=="yes":
+    if args.txtoutput=="yes":
         txt=open(output, 'a+')
         for key, value in form.items():
             txt.write('%s:\n\n%s\n\n' % (key, value))
@@ -144,32 +192,23 @@ def create_upload_form(arguments,entyname=None):
         post=requests.post(url="https://uguu.se/api.php?d=upload-tool",files=output)
         print(post.text)
 
-    if arguments.autoupload=="yes":
-        torrent = {'torrent': open(torrent,'rb')}
-        torrenturl="https://blutopia.xyz/api/torrents/upload?api_token=" + arguments.bluapi
+    if args.autoupload=="yes":
+        torrent = {'torrent': open(torrentpath,'rb')}
+        torrenturl="https://blutopia.xyz/api/torrents/upload?api_token=" + args.bluapi
         upload=requests.post(url=torrenturl,files=torrent, data=form)
         print(upload.text)
 
 
 
-def create_torrent(path,basename,arguments,torrentpath):
-   path=f'"{path}"'
+def create_torrent(path,args,torrentpath):
+   print("Creating Torrent")
+   t=subprocess.run([args.dottorrent,'-p','--source', 'BLU','-t',args.announce,path,torrentpath],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-   if arguments.torrentdir=="temp":
-       output=torrentpath
-       torrent= "dottorrent -p --source BLU -t "+arguments.announce+" "+  path +"  "+ torrentpath
-   else:
-       output= arguments.torrentdir +"[Blutopia]" + basename + '.torrent'
-       outputquoted=f'"{output}"'
-       torrent= "dottorrent -p --source BLU -t "+ arguments.announce+" "+ path +" "+outputquoted
-   print(torrent,"\n")
-   os.system(torrent)
-   return output
 
-def IMDBtoTMDB(imdbid,format,arguments):
-
-  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
+def IMDBtoTMDB(imdbid,args):
+  format=args.format
+  url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +args.tmdb+"&language=en-US&external_source=imdb_id"
   list=requests.get(url)
   if(format=="TV"):
        format='tv_results'
@@ -181,7 +220,7 @@ def IMDBtoTMDB(imdbid,format,arguments):
   id=list.json()[format]
   if len(id)==0:
       imdbid= input("auto imdb is probably wrong, please manually enter imdb excluding the tt: ")
-      url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +arguments.tmdb+"&language=en-US&external_source=imdb_id"
+      url="https://api.themoviedb.org/3/find/tt" + str(imdbid) +"?api_key="  +args.tmdb+"&language=en-US&external_source=imdb_id"
       list=requests.get(url)
       if(format=="TV"):
             format='tv_results'
@@ -220,13 +259,16 @@ def getimdb(path):
    counter=0
    accept=False
    print("Searching for movie/TV Show on IMDB","\n")
-   while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y" and counter<len(results):
-       if counter==6:
+   while accept!="True"and accept!="Y" and accept!="Yes" and accept!="YES" and accept!="y":
+       if counter==6 or counter>len(results):
            print("correct title not found")
            id = input("Enter imdb(no tt) ")
            results=IMDb().get_movie(id)
            return results
-       print(results[counter]["title"]," ",results[counter]["year"])
+       title=results[counter]['title']
+       year=str(results[counter]['year'])
+       t=f"{title}  {{ Movie Released-{year}}}"
+       print(t)
        accept=input(" is this Search result correct?:")
        if len(accept)==0 or accept=="N" or accept=="No" or accept=="n" or accept=="NO":
             counter=counter+1
@@ -248,7 +290,8 @@ def getimdb(path):
 
 
 
-def getTitle(path,source,format):
+
+def getTitle(path,args,source):
     input_title=os.path.basename(path)
     output_title=""
     info=guessit(input_title)
@@ -259,45 +302,34 @@ def getTitle(path,source,format):
     channels=info.get("audio_channels","")
     codec=info.get("video_codec")
     audio=getAudio(info.get("audio_codec",""),info.get("audio_channels",""), info.get("audio_profile",""))
-    extra=get_extra(input_title,year,name,res,audio,channels,group)
+    extra=get_extra(input_title,info)
     season="S0"+info.get("season","")
-    if source=="1" and format=="Movie" and re.search("[bB][lL][uU]",input_title)!=None:
-        output_title=f"{name} {year} {extra} {res} Blu-ray AVC "
-    elif source=="1" and format=="Movie" and re.search("[dD][vV][dD]",input_title)!=None:
-        output_title=f"{name} {year} {extra} {res} DVD "
-    elif source=="3" and format=="Movie" and re.search("[bB][lL][uU]",input_title)!=None:
-        output_title=f"{name} {year} {res} BluRay REMUX "
-    elif source=="3" and format=="Movie" and re.search("[dD][vV][dD]",path)!=None:
-        output_title=f"{name} {year} {res} DVD REMUX "
-    elif source=="12" and format=="Movie":
-        output_title=f"{name} {year} {res} BluRay "
-        group
-    elif source=="4"  and format=="Movie":
-        output_title=f"{name} {year} {res} WEB-DL "
-    elif source=="5"  and format=="Movie":
-        output_title=f"{name} {year} {res} WEB-RIP "
-    elif source=="6"  and format=="Movie":
-        output_title=f"{name} {year} {res} HDTV "
+    if args.format=="Movie" and (re.search("[bB][lL][uU][rR]",input_title)!=None or re.search("[bB][lL][uU]-[rR]",input_title)!=None ):
+        output_title=f"{name} {year} {res} Blu-ray AVC REMUX {extra} "
+    elif args.format=="Movie" and re.search("[bB][lL][uU]",input_title)!=None:
+        output_title=f"{name} {year} {res} Blu-ray AVC {extra} "
+    elif args.format=="Movie" and (re.search("[dD][vV][dD][rR]",input_title)!=None or re.search("[dD][vV][dD]-[rR]",input_title)!=None ):
+        output_title=f"{name} {year} {res} DVD REMUX {extra} "
+    elif args.format=="Movie" and re.search("[dD][vV][dD]",input_title)!=None:
+        output_title=f"{name} {year} {res} DVD {extra} "
+    elif args.format=="Movie" and (re.search("[wW][eE][bB][dD]",input_title)!=None or re.search("[wW][eE][bB]-[dD]",input_title)!=None ):
+        output_title=f"{name} {year} {res} WEB-DL {extra} "
+    elif args.format=="Movie" and (re.search("[wW][eE][bB][rR]",input_title)!=None or re.search("[wW][eE][bB]-[rR]",input_title)!=None ):
+        output_title=f"{name} {year} {res} WEB-RIP {extra} "
 
+    if args.format=="TV" and (re.search("[bB][lL][uU][rR]",input_title)!=None or re.search("[bB][lL][uU]-[rR]",input_title)!=None ):
+        output_title=f"{name} {year} {season} {res} Blu-ray AVC REMUX  {extra} "
+    elif args.format=="TV" and re.search("[bB][lL][uU]",input_title)!=None:
+        output_title=f"{name} {year} {season} {res} Blu-ray AVC {extra} "
+    elif args.format=="TV" and (re.search("[dD][vV][dD][rR]",input_title)!=None or re.search("[dD][vV][dD]-[rR]",input_title)!=None ):
+        output_title=f"{name} {year} {season} {res} DVD REMUX {extra} "
+    elif args.format=="TV" and re.search("[dD][vV][dD]",input_title)!=None:
+        output_title=f"{name} {year} {season} {res} DVD {extra} "
+    elif args.format=="TV" and (re.search("[wW][eE][bB][dD]",input_title)!=None or re.search("[wW][eE][bB]-[dD]",input_title)!=None ):
+        output_title=f"{name} {year} {season} {res} WEB-DL {extra} "
+    elif args.format=="TV" and (re.search("[wW][eE][bB][rR]",input_title)!=None or re.search("[wW][eE][bB]-[rR]",input_title)!=None ):
+        output_title=f"{name} {year} {season} {res} WEB-RIP {extra} "
 
-
-
-    elif source=="1" and format=="TV" and re.search("[bB][lL][uU]",input_title)!=None:
-        output_title=f"{name} {season} {year} {extra} {res} Blu-ray AVC "
-    elif source=="1" and format=="TV" and re.search("[dD][vV][dD]",input_title)!=None:
-        output_title=f"{name} {year} {extra} {res} DVD "
-    elif source=="3" and format=="TV" and re.search("[bB][lL][uU]",input_title)!=None:
-        output_title=f"{name} {year} {res} BluRay REMUX "
-    elif source=="3" and format=="Movie" and re.search("[dD][vV][dD]",path)!=None:
-        output_title=f"{name} {season} {year} {res} DVD REMUX "
-    elif source=="12" and format=="TV":
-        output_title=f"{name} {season} {year} {res} BluRay "
-    elif source=="4"  and format=="TV":
-        output_title=f"{name} {season} {year} {res} WEB-DL "
-    elif source=="5"  and format=="TV":
-        output_title=f"{name} {season} {year} {res} WEB-RIP "
-    elif source=="6"  and format=="TV":
-        output_title=f"{name} {season} {year} {res} HDTV "
     output_title=re.sub("\."," ",output_title)
     output_title=re.sub("  "," ",output_title)
     tag=getTag(source,audio,group,codec)
@@ -336,26 +368,14 @@ def getAudio(audio,channels,profile):
         output=output+" "+channels
     return output
 
-def get_extra(title,year,name,res,audio,channels,group):
-    title=re.sub("\."," ",title)
-    name=re.sub("\."," ",name)
-    extra=re.sub(name,"",title)
-    title=re.sub("\."," ",extra)
-    extra=re.sub(str(year),"",extra)
-    extra=re.sub("-"+group,"",extra)
-    extra=re.sub(group,"",extra)
-    extra=re.sub(res,"",extra)
-    extra=re.sub(audio,"",extra)
-    extra=re.sub(channels,"",extra)
-    extra=re.sub("[bB][lL][uU][rR][aA][yY]","",extra)
-    extra=re.sub("[bB][lL][uU]-[rR][aA][yY]","",extra)
-    extra=re.sub("[dD][tT][sS][hH][dD]-[mM][aA]","",extra)
-    extra=re.sub("[aA][tT][mM][oO][sS]","",extra)
-    extra=re.sub("  ","",extra)
+def get_extra(title,info):
+    extra=""
+    if re.search("atmos",title,re.IGNORECASE)!=None:
+        extra=extra+"ATMOS"
     return extra
 
-def setTypeID(path,arguments):
-    if arguments.autotype=="yes":
+def setTypeID(path,args):
+    if args.autotype=="yes":
         details=guessit(path)
         source = details['source']
 
@@ -417,8 +437,8 @@ def is_sd(path):
 
 
 
-def setType(path,arguments):
-    if arguments.autotype=="yes":
+def setType(path,args):
+    if args.autotype=="yes":
         details=guessit(path)
         format = details['type']
         if(format=="episode"):
@@ -429,9 +449,9 @@ def setType(path,arguments):
         print(path,"\n")
         print("What type of file are you uploading","\n")
         format = input("Enter TV or Movie: ")
-    return format
+    args.format=format
 
-def check_dupe(typeid,title,arguments,cat,res):
+def check_dupe(typeid,title,args,cat,res):
     details=guessit(title)
     title = details['title']
     if details.get("season")!=None:
@@ -439,7 +459,7 @@ def check_dupe(typeid,title,arguments,cat,res):
 
     if 'year' in details:
         title = "{} {}".format(title, details['year'])
-    url="https://blutopia.xyz/api/torrents/filter?name="+title+"&categories[]="+cat+"&types[]="+typeid+"&resolution[]="+res+"&api_token=" + arguments.bluapi
+    url="https://blutopia.xyz/api/torrents/filter?name="+title+"&categories[]="+cat+"&types[]="+typeid+"&resolution[]="+res+"&api_token=" + args.bluapi
     dupes=requests.get(url=url)
     dupes=dupes.json()
     print(url,"\n")
@@ -457,30 +477,25 @@ def check_dupe(typeid,title,arguments,cat,res):
 
 
 def get_mediainfo(path):
-    media_info = MediaInfo.parse(path,output="STRING")
+    media_info = MediaInfo.parse(path,output="STRING",full=False)
     media_info=media_info.encode(encoding='utf8')
     media_info=media_info.decode('utf8', 'strict')
     return media_info
-def createimages(path,arguments):
+def create_images(path,args,dir):
     #uploading
-    mtn=arguments.mtn
-    oxipng=arguments.oxipng
+    print("Creating Images")
+    mtn=args.mtn
+    oxipng=args.oxipng
 
-    dir = tempfile.TemporaryDirectory()
+
     media_info = MediaInfo.parse(path)
     for track in media_info.tracks:
         if track.track_type == 'Video':
             interval=math.ceil(float(track.duration)/10000)
-    path=f'"{path}"'
-    screenshot=mtn+ " -f "+ arguments.font+ " -o .png -w 0 -P -s "+ str(interval)+ " -I " +path +" -O " +dir.name
-    os.system(screenshot)
-    url='https://api.imgbb.com/1/upload?key=' + arguments.imgbb
-    text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
-    textinput= open(text,"w+")
-
-
-
+    t=subprocess.run(['mtn','-f',args.font,'-o','.png','-w','0','-P','-s',str(interval),'-I',path,'-O',dir.name],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     #delete largest pic
+
+
     max=0
     delete=""
     for filename in os.listdir(dir.name):
@@ -493,23 +508,31 @@ def createimages(path,arguments):
     home= os.getcwd()
     os.chdir(dir.name)
 
-    if arguments.compress=="=yes":
+
+
+
+    if args.compress=="=yes":
         for filename in os.listdir(dir.name):
-            compress=oxipng + " -o 6 -r strip safe "+ filename
-            os.system(compress)
+            subprocess.run(['oxipng','-o','6','strip safe',filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 
+
+def upload_image(dir,args):
+    home= os.getcwd()
+    url='https://api.imgbb.com/1/upload?key=' + args.imgbb
+    text=os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    textinput= open(text,"w+")
     for filename in os.listdir(dir.name):
-       image=dir.name+'/'+filename
-       image = {'image': open(image,'rb')}
-       upload=requests.post(url=url,files=image)
-       upload=upload.json()['data']['url_viewer']
-       upload=requests.post(url=upload)
-       link = BeautifulSoup(upload.text, 'html.parser')
-       link = link.find('input',{'id' :'embed-code-5'})
-       link=link.attrs['value']+" "
-       textinput.write(link)
+         image=dir.name+'/'+filename
+         image = {'image': open(image,'rb')}
+         upload=requests.post(url=url,files=image)
+         upload=upload.json()['data']['url_viewer']
+         upload=requests.post(url=upload)
+         link = BeautifulSoup(upload.text, 'html.parser')
+         link = link.find('input',{'id' :'embed-code-5'})
+         link=link.attrs['value']+" "
+         textinput.write(link)
     textinput.close()
     textoutput= open(text,"r")
     os.chdir(home)
@@ -541,16 +564,27 @@ if __name__ == '__main__':
     parser.add_argument("--font",default=None)
     parser.add_argument("--compress",default=None)
     parser.add_argument("--announce",default=None)
+    parser.add_argument("--format",default=None)
     parser.add_argument("--mtn",default="mtn")
     parser.add_argument("--oxipng",default="oxipng")
-    arguments = parser.parse_args()
-    arguments=createconfig(arguments)
+    parser.add_argument("--dottorrent",default="dottorrent")
+    parser.add_argument("--images",action='store_true')
 
-    if os.path.isdir(arguments.media)==False:
-        create_upload_form(arguments)
+    args = parser.parse_args()
+    createconfig(args)
+    create_binaries(args)
+    print(args)
+    if os.path.isdir(args.media)==False:
+        if args.images:
+            dir = tempfile.TemporaryDirectory()
+            create_images(args.media,args,dir)
+            imgs=upload_image(dir,args)
+            print(imgs)
+            quit()
+        create_upload_form(args)
         quit()
     keepgoing = "Yes"
-    choices=os.listdir(arguments.media)
+    choices=os.listdir(args.media)
     if os.name != 'nt':
         from simple_term_menu import TerminalMenu
         menu = TerminalMenu(choices)
@@ -558,10 +592,16 @@ if __name__ == '__main__':
             menu_entry_index = menu.show()
             path=choices[menu_entry_index]
             print("\n")
-            create_upload_form(arguments,path)
+            if args.images:
+                dir = tempfile.TemporaryDirectory()
+                vid=os.path.join(args.media,path)
+                create_images(vid,args,dir)
+                imgs=upload_image(dir,args)
+                print(imgs)
+                continue
+            create_upload_form(args,path)
             keepgoing=input("Upload Another File: ")
         quit()
-
     while keepgoing=="Yes" or keepgoing=="yes" or keepgoing=="Y" or keepgoing=="y"  or keepgoing=="YES":
         for (i, item) in enumerate(choices):
             index="INDEX:"+str(i)
@@ -572,5 +612,13 @@ if __name__ == '__main__':
         myindex=input("Enter the INDEX of the upload: ")
         path=choices[int(myindex)]
         print("\n")
-        create_upload_form(arguments,path)
+        if args.images:
+            dir = tempfile.TemporaryDirectory()
+            vid=os.path.join(args.media,path)
+
+            create_images(vid.media,args,dir)
+            imgs=upload_image(dir,args)
+            print(imgs)
+            continue
+        create_upload_form(args,path)
         keepgoing=input("Upload Another File: ")
